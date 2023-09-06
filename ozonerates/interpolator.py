@@ -180,33 +180,10 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
         tri, sat_data.surface_albedo*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)    
 
-    # interpolate 3Ds fields for two-step retrievals (scattering weights, for example OMI NO2)
-    if isinstance(sat_data, satellite_amf):
-        if np.size(sat_data.scattering_weights) != 1:
-            scattering_weights = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
-                                           np.shape(upscaled_X)[1]))
-            for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-                print('....................... SWs [' + str(z+1) +
-                      '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
-                _, _, scattering_weights[z, :, :], _ = _upscaler(lons_grid, lats_grid,
-                                                                 _interpolosis(tri, sat_data.scattering_weights[z, :, :].squeeze()
-                                                                               * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
-            pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
-                                     np.shape(upscaled_X)[1]))
-            for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-                print('....................... pmids [' + str(z+1) +
-                      '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
-                _, _,  pressure_mid[z, :, :], _ = _upscaler(lons_grid, lats_grid,
-                                                            _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()
-                                                                          * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-                                                            ctm_models_coordinate, grid_size, threshold_ctm)
-        else:
-            scattering_weights = np.empty((1))
-            pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+    scattering_weights = np.empty((1))
+    pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                                      np.shape(upscaled_X)[1]))
 
-
-  
     interpolated_sat = satellite_amf(vcd, scd, sat_data.time, tropopause, latitude_center, longitude_center, [
         ], [], uncertainty, [], pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], surface_albedo, SZA)
     return interpolated_sat

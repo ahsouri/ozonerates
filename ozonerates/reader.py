@@ -648,7 +648,7 @@ class readers(object):
         else:
             raise Exception("the satellite is not supported, come tomorrow!")
 
-    def read_ctm_data(self, YYYYMM: str, frequency_opt: str, averaged=False, num_job=1):
+    def read_ctm_data(self, YYYYMM: str, num_job=1):
         '''
             read ctm data
             Input:

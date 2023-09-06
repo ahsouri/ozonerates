@@ -37,3 +37,21 @@ class ctm_model:
     height_mid: np.ndarray
     PBLH: np.ndarray
     ctmtype: str
+
+@dataclass
+class param_input:
+    latitude: np.ndarray
+    longitude: np.ndarray
+    time: datetime.datetime
+    gas_profile_no2: np.ndarray
+    gas_profile_hcho: np.ndarray 
+    O3col: np.ndarray    
+    pressure_mid: np.ndarray
+    tempeature_mid: np.ndarray
+    height_mid: np.ndarray
+    PBLH: np.ndarray
+    vcd: np.ndarray
+    vcd_err: np.ndarray
+    tropopause: np.ndarray
+    surface_albedo: np.ndarray
+    SZA: np.ndarray
