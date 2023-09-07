@@ -4,7 +4,7 @@ import datetime
 import glob
 from joblib import Parallel, delayed
 from netCDF4 import Dataset
-from ozonerates.config import satellite_amf, satellite_opt, ctm_model
+from ozonerates.config import satellite_amf, ctm_model
 from oisatgmi.interpolator import interpolator
 import warnings
 from scipy.io import savemat
@@ -106,8 +106,8 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
         temperature_mid = np.flip(temperature_mid, axis=1)  # from bottom to top
         height_mid = _read_nc(fname_met,'H')
         height_mid = np.flip(height_mid, axis=1)  # from bottom to top
-        PBLH = _read_nc(fname_pbl,'PBLH')
-        PBLH = PBLH[2::3,:,:] # 1-hourly to 3-hourly
+        PBL = _read_nc(fname_pbl,'PBLTOP')
+        PBL = PBL[2::3,:,:] # 1-hourly to 3-hourly
         # read ozone
         O3 = np.flip(_read_nc(
             fname_gas, 'O3'), axis=1)
@@ -124,7 +124,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
         NO2 = NO2*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0*1e-15
         # shape up the ctm class
         gmi_data = ctm_model(latitude, longitude, time, NO2, HCHO, O3,
-                             pressure_mid, temperature_mid, height_mid, PBLH, ctmtype)
+                             pressure_mid, temperature_mid, height_mid, PBL, ctmtype)
         return gmi_data
 
     # read meteorological and chemical fields
@@ -133,7 +133,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
     tavg3_3d_gas_files = sorted(
         glob.glob(product_dir + "/*tavg3_3d_tac_Nv." + str(YYYYMM) + "*.nc4"))
     tavg1_2d_pbl = sorted(
-        glob.glob(product_dir + "/*tavg1_2d_flz_Nx." + str(YYYYMM) + "*.nc4"))
+        glob.glob(product_dir + "/*tavg1_2d_slv_Nx." + str(YYYYMM) + "*.nc4"))
     if len(tavg3_3d_gas_files) != len(tavg3_3d_met_files):
         raise Exception(
                 "the data are not consistent")

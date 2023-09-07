@@ -205,7 +205,7 @@ class ozonerates(object):
     def __init__(self) -> None:
         pass
 
-    def read_data(self, ctm_type: str, ctm_path: Path, sat_path: Path, YYYYMM: str, read_ak=False, trop=True, num_job=1):
+    def read_data(self, ctm_type: str, ctm_path: Path, sat_path: list, YYYYMM: str, read_ak=False, trop=True, num_job=1):
         reader_obj = readers()
         # initialize
         reader_obj.add_ctm_data(ctm_type, ctm_path)
@@ -213,7 +213,7 @@ class ozonerates(object):
         self.ctmdata = reader_obj.ctm_data
         # NO2
         reader_obj.add_satellite_data(
-            'OMI_NO2', sat_path)
+            'OMI_NO2', sat_path[0])
         reader_obj.read_satellite_data(
             YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
         self.satno2 = reader_obj.sat_data
@@ -221,7 +221,7 @@ class ozonerates(object):
         self.satno2 = []
         # HCHO
         reader_obj.add_satellite_data(
-            'OMI_HCHO', sat_path)
+            'OMI_HCHO', sat_path[1])
         reader_obj.read_satellite_data(
             YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
         self.sathcho = reader_obj.sat_data
@@ -252,12 +252,8 @@ class ozonerates(object):
 if __name__ == "__main__":
 
     ozonerates_obj = ozonerates()
-    oisatgmi_obj.read_data('GMI', Path('/home/asouri/git_repos/mule/eccoh_sample'), 'NO2', 'monthly', 'OMI_NO2',
-                           Path('download_bucket/omi_no2/'), '201803',
-                           averaged=True, read_ak=False, trop=True, num_job=1)
-    oisatgmi_obj.recal_amf()
-    # oisatgmi_obj.conv_ak()
-    oisatgmi_obj.average('2018-03-01', '2018-04-01')
-    oisatgmi_obj.oi(error_ctm=10.0)
-    oisatgmi_obj.reporting('NO2_200503_new', 'NO2', folder='report')
-    oisatgmi_obj.write_to_nc('NO2_200503_new', 'diag')
+    sat_path = []
+    sat_path.append(Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_no2_PO3'))
+    sat_path.append(Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_hcho_PO3'))
+    ozonerates_obj.read_data('GMI', Path('/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'),
+                                 sat_path, '200506',read_ak=False, trop=True, num_job=1)
