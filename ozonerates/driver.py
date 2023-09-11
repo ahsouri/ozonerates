@@ -4,6 +4,7 @@ import numpy as np
 from scipy.io import savemat
 from numpy import dtype
 from netCDF4 import Dataset
+import netCDF4
 import os
 from scipy.spatial import Delaunay
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
@@ -12,27 +13,26 @@ from ozonerates.interpolator import _interpolosis
 from ozonerates.config import param_input
 
 
-def ctmpost(self, satdata_no2):
+def ctmpost(satdata_no2,ctmdata):
 
     print('Mapping CTM data into Sat grid...')
     # list the time in ctm_data
     time_ctm = []
     time_ctm_datetype = []
-    for ctm_granule in self.ctmdata:
+    for ctm_granule in ctmdata:
         time_temp = ctm_granule.time
         for n in range(len(time_temp)):
             time_temp2 = time_temp[n].year*10000 + time_temp[n].month*100 +\
                 time_temp[n].day + time_temp[n].hour/24.0 + \
                 time_temp[n].minute/60.0/24.0 + time_temp[n].second/3600.0/24.0
             time_ctm.append(time_temp2)
-
-    time_ctm_datetype.append(ctm_granule.time)
-
+        time_ctm_datetype.append(ctm_granule.time)
     time_ctm = np.array(time_ctm)
+    print(time_ctm)
     # define the triangulation
-    points = np.zeros((np.size(self.ctmdata[0].latitude), 2))
-    points[:, 0] = self.ctmdata[0].longitude.flatten()
-    points[:, 1] = self.ctmdata[0].latitude.flatten()
+    points = np.zeros((np.size(ctmdata[0].latitude), 2))
+    points[:, 0] = ctmdata[0].longitude.flatten()
+    points[:, 1] = ctmdata[0].latitude.flatten()
     tri = Delaunay(points)
     # loop over the satellite list
     counter = 0
@@ -54,19 +54,19 @@ def ctmpost(self, satdata_no2):
         print("The closest GMI file used for the L2 at " + str(L2_granule.time) +
               " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
 
-        ctm_mid_pressure = self.ctmdata[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
+        ctm_mid_pressure = ctmdata[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
         )
-        ctm_no2_profile = self.ctmdata[closest_index_day].gas_profile_no2[closest_index_hour, :, :, :].squeeze(
+        ctm_no2_profile = ctmdata[closest_index_day].gas_profile_no2[closest_index_hour, :, :, :].squeeze(
         )
-        ctm_hcho_profile = self.ctmdata[closest_index_day].gas_profile_hcho[closest_index_hour, :, :, :].squeeze(
+        ctm_hcho_profile = ctmdata[closest_index_day].gas_profile_hcho[closest_index_hour, :, :, :].squeeze(
         )
-        ctm_mid_T = self.ctmdata[closest_index_day].tempeature_mid[closest_index_hour, :, :, :].squeeze(
+        ctm_mid_T = ctmdata[closest_index_day].tempeature_mid[closest_index_hour, :, :, :].squeeze(
         )
-        ctm_height = self.ctmdata[closest_index_day].height_mid[closest_index_hour, :, :, :].squeeze(
+        ctm_height = ctmdata[closest_index_day].height_mid[closest_index_hour, :, :, :].squeeze(
         )
-        ctm_O3col = self.ctmdata[closest_index_day].O3col[closest_index_hour, :, :].squeeze(
+        ctm_O3col = ctmdata[closest_index_day].O3col[closest_index_hour, :, :].squeeze(
         )
-        ctm_PBLH = self.ctmdata[closest_index_day].PBLH[closest_index_hour, :, :].squeeze(
+        ctm_PBLH = ctmdata[closest_index_day].PBLH[closest_index_hour, :, :].squeeze(
         )
 
         ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
@@ -105,12 +105,11 @@ def ctmpost(self, satdata_no2):
                                                    sat_coordinate["Latitude"], 1, dists, 0.2)
             ctm_height_new[z, :, :] = _interpolosis(tri, ctm_height[z, :, :].squeeze(), sat_coordinate["Longitude"],
                                                     sat_coordinate["Latitude"], 1, dists, 0.2)
-        ctm_O3col_new[z, :, :] = _interpolosis(tri, ctm_O3col, sat_coordinate["Longitude"],
+        ctm_O3col_new[:, :] = _interpolosis(tri, ctm_O3col, sat_coordinate["Longitude"],
                                                sat_coordinate["Latitude"], 1, dists, 0.2)
-        ctm_PBLH_new[z, :, :] = _interpolosis(tri, ctm_PBLH, sat_coordinate["Longitude"],
+        ctm_PBLH_new[:, :] = _interpolosis(tri, ctm_PBLH, sat_coordinate["Longitude"],
                                               sat_coordinate["Latitude"], 1, dists, 0.2)
 
-        # this param input doesn't have HCHO values
         param = param_input(L2_granule.longitude_center, L2_granule.latitude_center, L2_granule.time,
                             ctm_no2_profile_new, ctm_hcho_profile_new, ctm_O3col_new, ctm_mid_pressure_new,
                             ctm_mid_T_new, ctm_height_new, ctm_PBLH_new, L2_granule.vcd, L2_granule.uncertainty, 
@@ -135,7 +134,7 @@ def write_to_nc(data, output_file, output_folder='diag'):
     ncfile.createDimension('x', np.shape(data.latitude)[0])
     ncfile.createDimension('y', np.shape(data.latitude)[1])
     ncfile.createDimension('z', np.shape(data.height_mid)[0])
-    ncfile.createDimension('t', 1)
+    ncfile.createDimension('t', None)
 
     data1 = ncfile.createVariable(
         'latitude', dtype('float32').char, ('x', 'y'))
@@ -173,28 +172,28 @@ def write_to_nc(data, output_file, output_folder='diag'):
         'VCD_err', dtype('float32').char, ('x', 'y'))
     data13[:, :] = data.vcd_err
 
-    data3 = ncfile.createVariable(
-        'time', dtype('U25').char, ('t'))
-    data3[:] = data.time.strftime("%Y-%m-%d %H:%M:%S")
+    #data3 = ncfile.createVariable(
+    #'time', 'S1', ('t'))
+    #data3[:] = netCDF4.stringtochar(data.time.strftime("%Y-%m-%d %H:%M:%S"),'S')
 
     data4 = ncfile.createVariable(
-        'gas_partialcol_no2', dtype('float32').char, ('z,', 'x', 'y'))
+        'gas_partialcol_no2', dtype('float32').char, ('z', 'x', 'y'))
     data4[:, :, :] = data.gas_profile_no2
 
     data5 = ncfile.createVariable(
-        'gas_partialcol_hcho', dtype('float32').char, ('z,', 'x', 'y'))
+        'gas_partialcol_hcho', dtype('float32').char, ('z', 'x', 'y'))
     data5[:, :, :] = data.gas_profile_hcho
 
     data6 = ncfile.createVariable(
-        'pressure_mid', dtype('float32').char, ('z,', 'x', 'y'))
+        'pressure_mid', dtype('float32').char, ('z', 'x', 'y'))
     data6[:, :, :] = data.pressure_mid
 
     data7 = ncfile.createVariable(
-        'tempeature_mid', dtype('float32').char, ('z,', 'x', 'y'))
+        'tempeature_mid', dtype('float32').char, ('z', 'x', 'y'))
     data7[:, :, :] = data.tempeature_mid
 
     data8 = ncfile.createVariable(
-        'height_mid', dtype('float32').char, ('z,', 'x', 'y'))
+        'height_mid', dtype('float32').char, ('z', 'x', 'y'))
     data8[:, :, :] = data.height_mid
 
     ncfile.close()
@@ -217,25 +216,25 @@ class ozonerates(object):
         reader_obj.read_satellite_data(
             YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
         self.satno2 = reader_obj.sat_data
-        self.o3paramno2 = ctmpost(self.satno2)
+        self.o3paramno2 = ctmpost(self.satno2,self.ctmdata)
         self.satno2 = []
+        reader_obj.sat_data = []
+        for fno2 in self.o3paramno2:
+            time_no2 = fno2.time
+            time_no2 = time_no2.strftime("%Y%m%d_%H%M%S")
+            write_to_nc(fno2, "PO3inputs_NO2_" +
+                             str(time_no2), output_folder='diag')
+        self.o3paramno2 = []
         # HCHO
         reader_obj.add_satellite_data(
             'OMI_HCHO', sat_path[1])
         reader_obj.read_satellite_data(
             YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
         self.sathcho = reader_obj.sat_data
-        self.o3paramhcho = ctmpost(self.sathcho)
+        self.o3paramhcho = ctmpost(self.sathcho,self.ctmdata)
         self.sathcho = []
         self.ctmdata = []
         reader_obj = []
-
-        for fno2 in self.o3paramno2:
-            time_no2 = fno2.time
-            time_no2 = time_no2.year*10000 + time_no2.month*100 +\
-                time_no2.day
-            write_to_nc(fno2, "PO3inputs_NO2_" +
-                             str(time_no2), output_folder='diag')
 
         for fhcho in self.o3paramhcho:
             time_hcho = fhcho.time
@@ -256,4 +255,4 @@ if __name__ == "__main__":
     sat_path.append(Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_no2_PO3'))
     sat_path.append(Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_hcho_PO3'))
     ozonerates_obj.read_data('GMI', Path('/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'),
-                                 sat_path, '200506',read_ak=False, trop=True, num_job=1)
+                                 sat_path, '200506',read_ak=False, trop=True, num_job=12)

@@ -5,7 +5,7 @@ import glob
 from joblib import Parallel, delayed
 from netCDF4 import Dataset
 from ozonerates.config import satellite_amf, ctm_model
-from oisatgmi.interpolator import interpolator
+from ozonerates.interpolator import interpolator
 import warnings
 from scipy.io import savemat
 import yaml
@@ -104,15 +104,15 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
         pressure_mid = np.flip(pressure_mid, axis=1)  # from bottom to top
         temperature_mid = _read_nc(fname_met, 'T').astype('float32')
         temperature_mid = np.flip(temperature_mid, axis=1)  # from bottom to top
-        height_mid = _read_nc(fname_met,'H')
+        height_mid = _read_nc(fname_met,'H')/1000.0
         height_mid = np.flip(height_mid, axis=1)  # from bottom to top
-        PBL = _read_nc(fname_pbl,'PBLTOP')
+        PBL = _read_nc(fname_pbl,'PBLTOP')/100.0
         PBL = PBL[2::3,:,:] # 1-hourly to 3-hourly
         # read ozone
         O3 = np.flip(_read_nc(
             fname_gas, 'O3'), axis=1)
         # integrate ozone (dobson unit)
-        O3 = O3*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0/2.69e16
+        O3 = O3*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0/2.69e16/100.0
         O3 = np.sum(O3,axis=1).squeeze()
         # read hcho profile shape
         HCHO = np.flip(_read_nc(
@@ -123,8 +123,8 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
             fname_gas, 'NO2'), axis=1)
         NO2 = NO2*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0*1e-15
         # shape up the ctm class
-        gmi_data = ctm_model(latitude, longitude, time, NO2, HCHO, O3,
-                             pressure_mid, temperature_mid, height_mid, PBL, ctmtype)
+        gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),
+                             pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)
         return gmi_data
 
     # read meteorological and chemical fields
@@ -471,6 +471,11 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
         cf_fraction_mask = cf_fraction < 0.4
         cf_fraction_mask = np.multiply(cf_fraction_mask, 1.0).squeeze()
 
+        surface_albedo = _read_group_nc(
+            fname, ['support_data'], 'albedo').astype('float16')
+        SZA = _read_group_nc(
+            fname, ['geolocation'], 'solar_zenith_angle').astype('float32')
+
         quality_flag = _read_group_nc(
             fname, ['key_science_data'], 'main_data_quality_flag').astype('float16')
         quality_flag = quality_flag == 0.0
@@ -500,7 +505,7 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
         tropopause = np.empty((1))
         # populate omi class
         omi_hcho = satellite_amf(vcd, scd, time, tropopause, latitude_center,
-                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
+                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo,SZA)
         # interpolation
         if (ctm_models_coordinate is not None):
             print('Currently interpolating ...')
@@ -635,8 +640,8 @@ class readers(object):
         satellite = self.satellite_product_name.split('_')[0]
         ctm_models_coordinate = {}
         # taking lats and lons from the free yaml
-        ctm_models_coordinate["Latitude"] = self.lons_grid
-        ctm_models_coordinate["Longitude"] = self.lats_grid
+        ctm_models_coordinate["Latitude"] = self.lats_grid
+        ctm_models_coordinate["Longitude"] = self.lons_grid
         if satellite == 'TROPOMI':
             self.sat_data = tropomi_reader(self.satellite_product_dir.as_posix(),
                                            self.satellite_product_name, ctm_models_coordinate,
@@ -664,14 +669,17 @@ class readers(object):
 
 # testing
 if __name__ == "__main__":
+    sat_path = []
+    sat_path.append(Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_no2_PO3'))
+    sat_path.append(Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_hcho_PO3'))
     reader_obj = readers()
-    reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
-    reader_obj.read_ctm_data(
-        '200905', 'CH4', frequency_opt='3-hourly', averaged=True)
+    reader_obj.add_ctm_data('GMI', Path('/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'))
+    reader_obj.read_ctm_data('200506', num_job=12)
+    # NO2
     reader_obj.add_satellite_data(
-        'GOSAT', Path('/media/asouri/Amir_5TB/NASA/GOSAT_XCH4/CH4_GOS_OCPR'))
+            'OMI_NO2', sat_path[0])
     reader_obj.read_satellite_data(
-        '200905', read_ak=True, num_job=1)
+            '200506', read_ak=False, trop=True, num_job=12)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center
@@ -685,12 +693,10 @@ if __name__ == "__main__":
         if trop is None:
             continue
         output[:, :, counter] = trop.vcd
-        output2[:, :, counter] = trop.uncertainty
 
     #output[output <= 0.0] = np.nan
     moutput = {}
     moutput["vcds"] = output
-    moutput["quality_flag"] = output2
     moutput["lat"] = latitude
     moutput["lon"] = longitude
-    savemat("vcds_mopitt.mat", moutput)
+    savemat("vcds_omi.mat", moutput)
