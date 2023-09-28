@@ -1,8 +1,9 @@
 from ozonerates.reader import readers
 from ozonerates.tools import ctmpost, write_to_nc
+from ozonerates.po3_est import PO3est_empirical
 from pathlib import Path
 from scipy.io import savemat
-
+import glob
 
 class ozonerates(object):
 
@@ -46,6 +47,9 @@ class ozonerates(object):
             time_hcho = time_hcho.strftime("%Y%m%d_%H%M%S")
             write_to_nc(fhcho, "PO3inputs_FORM_" +
                         str(time_hcho), output_folder='diag')
+            
+    def po3estimate_empirical(self,no2_path,hcho_path):
+        PO3est_empirical(no2_path,hcho_path)
 
     def reporting(self, fname: str, gasname, folder='report'):
         pass
@@ -62,3 +66,4 @@ if __name__ == "__main__":
         Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_hcho_PO3'))
     ozonerates_obj.read_data('GMI', Path('/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'),
                              sat_path, '200506', read_ak=False, trop=True, num_job=12)
+    ozonerates_obj.po3estimate_empirical("./diag","./diag")

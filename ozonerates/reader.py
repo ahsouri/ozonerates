@@ -108,6 +108,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
         height_mid = np.flip(height_mid, axis=1)  # from bottom to top
         PBL = _read_nc(fname_pbl,'PBLTOP')/100.0
         PBL = PBL[2::3,:,:] # 1-hourly to 3-hourly
+        tropp = _read_group_nc(fname_gas,'TROPPB')/100.0
         # read ozone
         O3 = np.flip(_read_nc(
             fname_gas, 'O3'), axis=1)
@@ -117,11 +118,25 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
         # read hcho profile shape
         HCHO = np.flip(_read_nc(
             fname_gas, 'CH2O'), axis=1)
-        HCHO = HCHO*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0*1e-15
+        # making a mask for the PBL region (it's 4D)
+        mask_PBL = np.zeros_like(pressure_mid)
+        for a in range(0,np.shape(mask_PBL)[0]):
+            for b in range(0,np.shape(mask_PBL)[1]):
+                mask_PBL[a,b,:,:] = pressure_mid[a,b,:,:].squeeze()>=PBL[a,:,:].squeeze()
+        mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
+        mask_PBL[mask_PBL != 1.0] = np.nan
+        HCHO = np.nanmean(1e9*HCHO*mask_PBL,axis=1).squeeze()/np.sum(HCHO*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0*1e-15,axis=1).squeeze()
         # calculate no2 profile shape
         NO2 = np.flip(_read_nc(
             fname_gas, 'NO2'), axis=1)
-        NO2 = NO2*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0*1e-15
+        # making a mask for the troposphere
+        mask_trop = np.zeros_like(pressure_mid)
+        for a in range(0,np.shape(mask_trop)[0]):
+            for b in range(0,np.shape(mask_trop)[1]):
+                mask_trop[a,b,:,:] = pressure_mid[a,b,:,:].squeeze()>=tropp[a,:,:].squeeze()
+        mask_trop = np.multiply(mask_trop, 1.0).squeeze()
+        mask_trop[mask_trop != 1.0] = np.nan
+        NO2 = np.nanmean(1e9*NO2*mask_PBL,axis=1).squeeze()/np.nansum(NO2*mask_trop*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0*1e-15,axis=1).squeeze()
         # shape up the ctm class
         gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),
                              pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)
@@ -372,6 +387,8 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
 
     SZA = _read_group_nc(
         fname, ['GEOLOCATION_DATA'], 'SolarZenithAngle').astype('float32')
+    surface_terrain = _read_group_nc(
+        fname, ['ANCILLARY_DATA'], 'TerrainHeight').astype('float32')
     # read quality flag
     cf_fraction = quality_flag_temp = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'CloudFraction').astype('float16')
@@ -380,7 +397,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
 
     train_ref = quality_flag_temp = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'TerrainReflectivity').astype('float16')
-    train_ref_mask = train_ref < 0.2
+    train_ref_mask = train_ref < 0.4
     train_ref_mask = np.multiply(train_ref_mask, 1.0).squeeze()
 
     quality_flag_temp = _read_group_nc(
@@ -419,7 +436,8 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
         tropopause = np.empty((1))
     # populate omi class
     omi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center,
-                            longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], train_ref, SZA)
+                            longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, 
+                            [], [], [], train_ref, SZA, surface_terrain)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -505,7 +523,7 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
         tropopause = np.empty((1))
         # populate omi class
         omi_hcho = satellite_amf(vcd, scd, time, tropopause, latitude_center,
-                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo,SZA)
+                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo,SZA,[])
         # interpolation
         if (ctm_models_coordinate is not None):
             print('Currently interpolating ...')

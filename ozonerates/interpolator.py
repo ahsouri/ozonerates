@@ -178,6 +178,11 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     print('....................... Surface Albedo')
     _, _, surface_albedo, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.surface_albedo*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+        ctm_models_coordinate, grid_size, threshold_ctm) 
+
+    print('....................... Surface Altitude')
+    _, _, surface_alt, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+        tri, sat_data.surface_alt*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)    
 
     scattering_weights = np.empty((1))
@@ -185,5 +190,5 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
                                      np.shape(upscaled_X)[1]))
 
     interpolated_sat = satellite_amf(vcd, scd, sat_data.time, tropopause, latitude_center, longitude_center, [
-        ], [], uncertainty, mask, pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], surface_albedo, SZA)
+        ], [], uncertainty, mask, pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], surface_albedo, SZA, surface_alt)
     return interpolated_sat

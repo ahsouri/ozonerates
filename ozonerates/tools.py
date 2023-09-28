@@ -52,9 +52,9 @@ def ctmpost(satdata_no2, ctmdata):
 
         ctm_mid_pressure = ctmdata[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
         )
-        ctm_no2_profile = ctmdata[closest_index_day].gas_profile_no2[closest_index_hour, :, :, :].squeeze(
+        ctm_no2_profile_factor = ctmdata[closest_index_day].gas_profile_no2[closest_index_hour, :, :].squeeze(
         )
-        ctm_hcho_profile = ctmdata[closest_index_day].gas_profile_hcho[closest_index_hour, :, :, :].squeeze(
+        ctm_hcho_profile_factor = ctmdata[closest_index_day].gas_profile_hcho[closest_index_hour, :, :].squeeze(
         )
         ctm_mid_T = ctmdata[closest_index_day].tempeature_mid[closest_index_hour, :, :, :].squeeze(
         )
@@ -69,8 +69,7 @@ def ctmpost(satdata_no2, ctmdata):
                                          np.shape(L2_granule.longitude_center)[0], np.shape(
                                              L2_granule.longitude_center)[1],
                                          ))*np.nan
-        ctm_no2_profile_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
-        ctm_hcho_profile_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
+ 
         ctm_mid_T_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
         ctm_height_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
         ctm_O3col_new = np.zeros((np.shape(L2_granule.longitude_center)[0], np.shape(
@@ -79,6 +78,8 @@ def ctmpost(satdata_no2, ctmdata):
         ctm_PBLH_new = np.zeros((np.shape(L2_granule.longitude_center)[0], np.shape(
             L2_granule.longitude_center)[1],
         ))*np.nan
+        ctm_no2_profile_f_new = np.zeros_like(ctm_PBLH_new)*np.nan
+        ctm_hcho_profile_f_new = np.zeros_like(ctm_PBLH_new)*np.nan
         sat_coordinate = {}
         sat_coordinate["Longitude"] = L2_granule.longitude_center
         sat_coordinate["Latitude"] = L2_granule.latitude_center
@@ -93,10 +94,6 @@ def ctmpost(satdata_no2, ctmdata):
         for z in range(0, np.shape(ctm_mid_pressure)[0]):
             ctm_mid_pressure_new[z, :, :] = _interpolosis(tri, ctm_mid_pressure[z, :, :].squeeze()*L2_granule.quality_flag, sat_coordinate["Longitude"],
                                                           sat_coordinate["Latitude"], 1, dists, 0.2)
-            ctm_no2_profile_new[z, :, :] = _interpolosis(tri, ctm_no2_profile[z, :, :].squeeze()*L2_granule.quality_flag, sat_coordinate["Longitude"],
-                                                         sat_coordinate["Latitude"], 1, dists, 0.2)
-            ctm_hcho_profile_new[z, :, :] = _interpolosis(tri, ctm_hcho_profile[z, :, :].squeeze()*L2_granule.quality_flag, sat_coordinate["Longitude"],
-                                                          sat_coordinate["Latitude"], 1, dists, 0.2)
             ctm_mid_T_new[z, :, :] = _interpolosis(tri, ctm_mid_T[z, :, :].squeeze()*L2_granule.quality_flag, sat_coordinate["Longitude"],
                                                    sat_coordinate["Latitude"], 1, dists, 0.2)
             ctm_height_new[z, :, :] = _interpolosis(tri, ctm_height[z, :, :].squeeze()*L2_granule.quality_flag, sat_coordinate["Longitude"],
@@ -105,11 +102,15 @@ def ctmpost(satdata_no2, ctmdata):
                                             sat_coordinate["Latitude"], 1, dists, 0.2)
         ctm_PBLH_new[:, :] = _interpolosis(tri, ctm_PBLH*L2_granule.quality_flag, sat_coordinate["Longitude"],
                                            sat_coordinate["Latitude"], 1, dists, 0.2)
+        ctm_no2_profile_f_new[z, :, :] = _interpolosis(tri, ctm_no2_profile_factor*L2_granule.quality_flag, sat_coordinate["Longitude"],
+                                                         sat_coordinate["Latitude"], 1, dists, 0.2)
+        ctm_hcho_profile_f_new[z, :, :] = _interpolosis(tri, ctm_hcho_profile_factor*L2_granule.quality_flag, sat_coordinate["Longitude"],
+                                                          sat_coordinate["Latitude"], 1, dists, 0.2)
 
         param = param_input(L2_granule.longitude_center, L2_granule.latitude_center, L2_granule.time,
-                            ctm_no2_profile_new, ctm_hcho_profile_new, ctm_O3col_new, ctm_mid_pressure_new,
+                            ctm_no2_profile_f_new, ctm_hcho_profile_f_new, ctm_O3col_new, ctm_mid_pressure_new,
                             ctm_mid_T_new, ctm_height_new, ctm_PBLH_new, L2_granule.vcd, L2_granule.uncertainty,
-                            L2_granule.tropopause, L2_granule.surface_albedo, L2_granule.SZA)
+                            L2_granule.tropopause, L2_granule.surface_albedo, L2_granule.SZA, L2_granule.surface_alt)
         params.append(param)
 
     return params
@@ -141,6 +142,30 @@ def write_to_nc(data, output_file, output_folder='diag'):
         'longitude', dtype('float32').char, ('x', 'y'))
     data2[:, :] = data.longitude
 
+    data3 = ncfile.createVariable(
+        'time', 'S1', ('t'))
+    data3 = data.time.strftime("%Y-%m-%d %H:%M:%S")
+
+    data4 = ncfile.createVariable(
+        'gas_pbl_factor_no2', dtype('float32').char, ('x', 'y'))
+    data4[:, :] = data.gas_profile_no2
+
+    data5 = ncfile.createVariable(
+        'gas_pbl_factor_hcho', dtype('float32').char, ('x', 'y'))
+    data5[:, :] = data.gas_profile_hcho
+
+    data6 = ncfile.createVariable(
+        'pressure_mid', dtype('float32').char, ('z', 'x', 'y'))
+    data6[:, :, :] = data.pressure_mid
+
+    data7 = ncfile.createVariable(
+        'tempeature_mid', dtype('float32').char, ('z', 'x', 'y'))
+    data7[:, :, :] = data.tempeature_mid
+
+    data8 = ncfile.createVariable(
+        'height_mid', dtype('float32').char, ('z', 'x', 'y'))
+    data8[:, :, :] = data.height_mid
+
     data9 = ncfile.createVariable(
         'O3col', dtype('float32').char, ('x', 'y'))
     data9[:, :] = data.O3col
@@ -165,32 +190,12 @@ def write_to_nc(data, output_file, output_folder='diag'):
         'VCD', dtype('float32').char, ('x', 'y'))
     data14[:, :] = data.vcd
 
-    data13 = ncfile.createVariable(
+    data15 = ncfile.createVariable(
         'VCD_err', dtype('float32').char, ('x', 'y'))
-    data13[:, :] = data.vcd_err
+    data15[:, :] = data.vcd_err
 
-    data3 = ncfile.createVariable(
-        'time', 'S1', ('t'))
-    data3 = data.time.strftime("%Y-%m-%d %H:%M:%S")
-
-    data4 = ncfile.createVariable(
-        'gas_partialcol_no2', dtype('float32').char, ('z', 'x', 'y'))
-    data4[:, :, :] = data.gas_profile_no2
-
-    data5 = ncfile.createVariable(
-        'gas_partialcol_hcho', dtype('float32').char, ('z', 'x', 'y'))
-    data5[:, :, :] = data.gas_profile_hcho
-
-    data6 = ncfile.createVariable(
-        'pressure_mid', dtype('float32').char, ('z', 'x', 'y'))
-    data6[:, :, :] = data.pressure_mid
-
-    data7 = ncfile.createVariable(
-        'tempeature_mid', dtype('float32').char, ('z', 'x', 'y'))
-    data7[:, :, :] = data.tempeature_mid
-
-    data8 = ncfile.createVariable(
-        'height_mid', dtype('float32').char, ('z', 'x', 'y'))
-    data8[:, :, :] = data.height_mid
+    data16 = ncfile.createVariable(
+        'surface_alt', dtype('float32').char, ('x', 'y'))
+    data16[:, :] = data.surface_alt   
 
     ncfile.close()

@@ -22,6 +22,7 @@ class satellite_amf:
     ctm_time_at_sat: datetime.datetime
     surface_albedo: np.ndarray
     SZA: np.ndarray
+    surface_alt: np.ndarray
 
 
 @dataclass
@@ -55,3 +56,4 @@ class param_input:
     tropopause: np.ndarray
     surface_albedo: np.ndarray
     SZA: np.ndarray
+    surface_alt: np.ndarray
