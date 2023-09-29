@@ -113,7 +113,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
         O3 = np.flip(_read_nc(
             fname_gas, 'O3'), axis=1)
         # integrate ozone (dobson unit)
-        O3 = O3*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0/2.69e16/100.0
+        O3 = O3*delta_p/g/Mair*N_A*1e-4*100.0/2.69e16
         O3 = np.sum(O3,axis=1).squeeze()
         # read hcho profile shape
         HCHO = np.flip(_read_nc(
@@ -125,7 +125,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
                 mask_PBL[a,b,:,:] = pressure_mid[a,b,:,:].squeeze()>=PBL[a,:,:].squeeze()
         mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
         mask_PBL[mask_PBL != 1.0] = np.nan
-        HCHO = np.nanmean(1e9*HCHO*mask_PBL,axis=1).squeeze()/np.sum(HCHO*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0*1e-15,axis=1).squeeze()
+        HCHO = np.nanmean(1e9*HCHO*mask_PBL,axis=1).squeeze()/np.sum(HCHO*delta_p/g/Mair*N_A*1e-4*100.0*1e-15,axis=1).squeeze()
         # calculate no2 profile shape
         NO2 = np.flip(_read_nc(
             fname_gas, 'NO2'), axis=1)
@@ -136,7 +136,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
                 mask_trop[a,b,:,:] = pressure_mid[a,b,:,:].squeeze()>=tropp[a,:,:].squeeze()
         mask_trop = np.multiply(mask_trop, 1.0).squeeze()
         mask_trop[mask_trop != 1.0] = np.nan
-        NO2 = np.nanmean(1e9*NO2*mask_PBL,axis=1).squeeze()/np.nansum(NO2*mask_trop*delta_p*pressure_mid/g/Mair*N_A*1e-4*100.0*1e-15,axis=1).squeeze()
+        NO2 = np.nanmean(1e9*NO2*mask_PBL,axis=1).squeeze()/np.nansum(NO2*mask_trop*delta_p/g/Mair*N_A*1e-4*100.0*1e-15,axis=1).squeeze()
         # shape up the ctm class
         gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),
                              pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)

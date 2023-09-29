@@ -64,6 +64,6 @@ if __name__ == "__main__":
         Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_no2_PO3'))
     sat_path.append(
         Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_hcho_PO3'))
-    #ozonerates_obj.read_data('GMI', Path('/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'),
-    #                         sat_path, '200506', read_ak=False, trop=True, num_job=24)
-    ozonerates_obj.po3estimate_empirical("./diag","./diag",'20050501','20050510')
+    ozonerates_obj.read_data('GMI', Path('/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'),
+                             sat_path, '200506', read_ak=False, trop=True, num_job=24)
+    ozonerates_obj.po3estimate_empirical("./diag","./diag",'2005-06-01','2005-06-10')
