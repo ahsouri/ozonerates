@@ -183,7 +183,13 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     print('....................... Surface Altitude')
     _, _, surface_alt, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.surface_alt*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-        ctm_models_coordinate, grid_size, threshold_ctm)    
+        ctm_models_coordinate, grid_size, threshold_ctm)
+
+    print('....................... Mask')
+    _, _, mask, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+        tri, mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+        ctm_models_coordinate, grid_size, threshold_ctm)
+    mask[mask>0] = 1.0
 
     scattering_weights = np.empty((1))
     pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],

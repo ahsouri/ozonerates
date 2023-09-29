@@ -18,22 +18,23 @@ def _read_nc(filename, var):
 
 def PO3est_empirical(no2_path, hcho_path):
     no2_files = sorted((glob.glob(no2_path + "/*_NO2_*.nc")))
-    PO3_estmates = []
+    PO3_estimates = []
     for f in no2_files:
+        print(f)
         PBLH = _read_nc(f, 'PBLH')
         VCD_NO2 = _read_nc(f, 'VCD')
-        no2_pbl_factor = _read_nc(f, 'gas_surface_factor_no2')
+        no2_pbl_factor = _read_nc(f, 'gas_pbl_factor_no2')
         PL = _read_nc(f, 'pressure_mid')
-        T = _read_nc(f, 'temperature_mid')
+        T = _read_nc(f, 'tempeature_mid')
         surface_albedo_no2 = _read_nc(f, 'surface_albedo')
         O3col = _read_nc(f, 'O3col')
         SZA = _read_nc(f, 'SZA')
         surface_alt = _read_nc(f, 'surface_alt')
         date_fname = f.split("NO2")
-
-        form_file = ((glob.glob(hcho_path + "/*_FORM" + date_fname + ".nc")))
+        form_file = ((glob.glob(hcho_path + "/*_FORM" + date_fname[1])))
+        if not form_file: continue
         VCD_FORM = _read_nc(form_file[0], 'VCD')
-        hcho_pbl_factor = _read_nc(f, 'gas_surface_factor_hcho')
+        hcho_pbl_factor = _read_nc(f, 'gas_pbl_factor_hcho')
         # extract the features
         # potential temp, HCHO_ppbv, NO2_ppbv, jNO2, FNR
         mask_PBL = PL >= PBLH
@@ -52,8 +53,9 @@ def PO3est_empirical(no2_path, hcho_path):
         J4 = (J["J4"])
         J4 = np.array(J4[0, 0])
         J4 = interpn((SZAhybrid.flatten(), ALBhybrid.flatten(), O3Chybrid.flatten(), ALThybrid.flatten()),
-                     J4, (SZA.flatten(), surface_albedo_no2.flatten(), O3col.flatten(), surface_alt.flatten()), method="linear")
-        J4 = np.reshape(J4, (np.shape(FNR)[0], np.shape(FNR)[1]))
+                     J4, (SZA.flatten(), surface_albedo_no2.flatten(), O3col.flatten(), surface_alt.flatten()), 
+                     method="linear",bounds_error=False,fill_value=np.nan)
+        J4 = np.reshape(J4, (np.shape(FNR)[0], np.shape(FNR)[1]))*1e3
 
         # load the lasso coeffs
         lasso_result = sio.loadmat('lasso_piecewise.mat')
@@ -78,6 +80,10 @@ def PO3est_empirical(no2_path, hcho_path):
                 PO3[i, j] = PO3[i, j]+HCHO_ppbv[i, j]*coeff[3]
                 PO3[i, j] = PO3[i, j]+NO2_ppbv[i, j]*coeff[4]
                 PO3[i, j] = PO3[i, j]+coeff0
-        PO3_estmates.append(PO3)
-    mdic = {"PO3",PO3_estmates}
+        PO3_estimates.append(PO3)
+        if len(PO3_estimates)>30:
+           break
+    PO3_estimates = np.array(PO3_estimates)
+    print(np.shape(PO3_estimates))
+    mdic = {"PO3":PO3_estimates}
     sio.savemat("PO3.mat", mdic)

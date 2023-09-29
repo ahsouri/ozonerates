@@ -108,7 +108,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
         height_mid = np.flip(height_mid, axis=1)  # from bottom to top
         PBL = _read_nc(fname_pbl,'PBLTOP')/100.0
         PBL = PBL[2::3,:,:] # 1-hourly to 3-hourly
-        tropp = _read_group_nc(fname_gas,'TROPPB')/100.0
+        tropp = _read_nc(fname_pbl,'TROPPB')/100.0
         # read ozone
         O3 = np.flip(_read_nc(
             fname_gas, 'O3'), axis=1)
@@ -493,7 +493,8 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
             fname, ['support_data'], 'albedo').astype('float16')
         SZA = _read_group_nc(
             fname, ['geolocation'], 'solar_zenith_angle').astype('float32')
-
+        terrain_height = _read_group_nc(
+            fname, ['geolocation'], 'terrain_height').astype('float32')
         quality_flag = _read_group_nc(
             fname, ['key_science_data'], 'main_data_quality_flag').astype('float16')
         quality_flag = quality_flag == 0.0
@@ -523,7 +524,7 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
         tropopause = np.empty((1))
         # populate omi class
         omi_hcho = satellite_amf(vcd, scd, time, tropopause, latitude_center,
-                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo,SZA,[])
+                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo,SZA, terrain_height)
         # interpolation
         if (ctm_models_coordinate is not None):
             print('Currently interpolating ...')

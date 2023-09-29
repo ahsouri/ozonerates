@@ -92,20 +92,20 @@ def ctmpost(satdata_no2, ctmdata):
         xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
         dists, _ = tree.query(xi)
         for z in range(0, np.shape(ctm_mid_pressure)[0]):
-            ctm_mid_pressure_new[z, :, :] = _interpolosis(tri, ctm_mid_pressure[z, :, :].squeeze()*L2_granule.quality_flag, sat_coordinate["Longitude"],
-                                                          sat_coordinate["Latitude"], 1, dists, 0.2)
-            ctm_mid_T_new[z, :, :] = _interpolosis(tri, ctm_mid_T[z, :, :].squeeze()*L2_granule.quality_flag, sat_coordinate["Longitude"],
-                                                   sat_coordinate["Latitude"], 1, dists, 0.2)
-            ctm_height_new[z, :, :] = _interpolosis(tri, ctm_height[z, :, :].squeeze()*L2_granule.quality_flag, sat_coordinate["Longitude"],
-                                                    sat_coordinate["Latitude"], 1, dists, 0.2)
-        ctm_O3col_new[:, :] = _interpolosis(tri, ctm_O3col*L2_granule.quality_flag, sat_coordinate["Longitude"],
-                                            sat_coordinate["Latitude"], 1, dists, 0.2)
-        ctm_PBLH_new[:, :] = _interpolosis(tri, ctm_PBLH*L2_granule.quality_flag, sat_coordinate["Longitude"],
-                                           sat_coordinate["Latitude"], 1, dists, 0.2)
-        ctm_no2_profile_f_new[z, :, :] = _interpolosis(tri, ctm_no2_profile_factor*L2_granule.quality_flag, sat_coordinate["Longitude"],
-                                                         sat_coordinate["Latitude"], 1, dists, 0.2)
-        ctm_hcho_profile_f_new[z, :, :] = _interpolosis(tri, ctm_hcho_profile_factor*L2_granule.quality_flag, sat_coordinate["Longitude"],
-                                                          sat_coordinate["Latitude"], 1, dists, 0.2)
+            ctm_mid_pressure_new[z, :, :] = _interpolosis(tri, ctm_mid_pressure[z, :, :].squeeze(), sat_coordinate["Longitude"],
+                                                          sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+            ctm_mid_T_new[z, :, :] = _interpolosis(tri, ctm_mid_T[z, :, :].squeeze(), sat_coordinate["Longitude"],
+                                                   sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+            ctm_height_new[z, :, :] = _interpolosis(tri, ctm_height[z, :, :].squeeze(), sat_coordinate["Longitude"],
+                                                    sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+        ctm_O3col_new[:, :] = _interpolosis(tri, ctm_O3col, sat_coordinate["Longitude"],
+                                            sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+        ctm_PBLH_new[:, :] = _interpolosis(tri, ctm_PBLH, sat_coordinate["Longitude"],
+                                           sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+        ctm_no2_profile_f_new[:, :] = _interpolosis(tri, ctm_no2_profile_factor, sat_coordinate["Longitude"],
+                                                         sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+        ctm_hcho_profile_f_new[:, :] = _interpolosis(tri, ctm_hcho_profile_factor, sat_coordinate["Longitude"],
+                                                          sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
 
         param = param_input(L2_granule.longitude_center, L2_granule.latitude_center, L2_granule.time,
                             ctm_no2_profile_f_new, ctm_hcho_profile_f_new, ctm_O3col_new, ctm_mid_pressure_new,
