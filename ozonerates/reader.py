@@ -58,16 +58,11 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
        Inputs:
              product_dir [str]: the folder containing the GMI data
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
-             gases_to_be_saved [list]: name of gases to be loaded. e.g., ['NO2']
-             frequency_opt: the frequency of data
-                        1 -> hourly 
-                        2 -> 3-hourly (only supported)
-                        3 -> daily
             num_obj [int]: number of jobs for parallel computation
        Output:
              gmi_fields [ctm_model]: a dataclass format (see config.py)
     '''
-    # a nested function
+    # a nested function to make the code in parallel
     def gmi_reader_wrapper(fname_met: str, fname_gas: str, fname_pbl: str) -> ctm_model:
         Mair = 28.97e-3
         g = 9.80665
@@ -97,46 +92,53 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
             time.append(datetime.datetime(timebegin_date[0], timebegin_date[1], timebegin_date[2],
                                           timebegin_time[0], timebegin_time[1], timebegin_time[2]) +
                         datetime.timedelta(minutes=int(time_min_delta[t])))
-        # read pressure information
+        # read pressure, temperature, PBL and other met information
         delta_p = _read_nc(fname_met, 'DELP').astype('float32')/100.0
         delta_p = np.flip(delta_p, axis=1)  # from bottom to top
         pressure_mid = _read_nc(fname_met, 'PL').astype('float32')/100.0
         pressure_mid = np.flip(pressure_mid, axis=1)  # from bottom to top
         temperature_mid = _read_nc(fname_met, 'T').astype('float32')
-        temperature_mid = np.flip(temperature_mid, axis=1)  # from bottom to top
-        height_mid = _read_nc(fname_met,'H')/1000.0
+        temperature_mid = np.flip(
+            temperature_mid, axis=1)  # from bottom to top
+        height_mid = _read_nc(fname_met, 'H')/1000.0
         height_mid = np.flip(height_mid, axis=1)  # from bottom to top
-        PBL = _read_nc(fname_pbl,'PBLTOP')/100.0
-        PBL = PBL[2::3,:,:] # 1-hourly to 3-hourly
-        tropp = _read_nc(fname_pbl,'TROPPB')/100.0
+        PBL = _read_nc(fname_pbl, 'PBLTOP')/100.0
+        PBL = PBL[2::3, :, :]  # 1-hourly to 3-hourly
+        tropp = _read_nc(fname_pbl, 'TROPPB')/100.0
         # read ozone
         O3 = np.flip(_read_nc(
             fname_gas, 'O3'), axis=1)
         # integrate ozone (dobson unit)
         O3 = O3*delta_p/g/Mair*N_A*1e-4*100.0/2.69e16
-        O3 = np.sum(O3,axis=1).squeeze()
-        # read hcho profile shape
+        O3 = np.sum(O3, axis=1).squeeze()
+        # read hcho profiles
         HCHO = np.flip(_read_nc(
             fname_gas, 'CH2O'), axis=1)
         # making a mask for the PBL region (it's 4D)
         mask_PBL = np.zeros_like(pressure_mid)
-        for a in range(0,np.shape(mask_PBL)[0]):
-            for b in range(0,np.shape(mask_PBL)[1]):
-                mask_PBL[a,b,:,:] = pressure_mid[a,b,:,:].squeeze()>=PBL[a,:,:].squeeze()
+        for a in range(0, np.shape(mask_PBL)[0]):
+            for b in range(0, np.shape(mask_PBL)[1]):
+                mask_PBL[a, b, :, :] = pressure_mid[a, b, :,
+                                                    :].squeeze() >= PBL[a, :, :].squeeze()
         mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
         mask_PBL[mask_PBL != 1.0] = np.nan
-        HCHO = np.nanmean(1e9*HCHO*mask_PBL,axis=1).squeeze()/np.sum(HCHO*delta_p/g/Mair*N_A*1e-4*100.0*1e-15,axis=1).squeeze()
-        # calculate no2 profile shape
+        # calculate the conversion of total HCHO to surface mixing ratio in ppbv
+        HCHO = np.nanmean(1e9*HCHO*mask_PBL, axis=1).squeeze() / \
+            np.sum(HCHO*delta_p/g/Mair*N_A*1e-4*100.0*1e-15, axis=1).squeeze()
+        # calculate no2 profiles
         NO2 = np.flip(_read_nc(
             fname_gas, 'NO2'), axis=1)
         # making a mask for the troposphere
         mask_trop = np.zeros_like(pressure_mid)
-        for a in range(0,np.shape(mask_trop)[0]):
-            for b in range(0,np.shape(mask_trop)[1]):
-                mask_trop[a,b,:,:] = pressure_mid[a,b,:,:].squeeze()>=tropp[a,:,:].squeeze()
+        for a in range(0, np.shape(mask_trop)[0]):
+            for b in range(0, np.shape(mask_trop)[1]):
+                mask_trop[a, b, :, :] = pressure_mid[a, b, :,
+                                                     :].squeeze() >= tropp[a, :, :].squeeze()
         mask_trop = np.multiply(mask_trop, 1.0).squeeze()
         mask_trop[mask_trop != 1.0] = np.nan
-        NO2 = np.nanmean(1e9*NO2*mask_PBL,axis=1).squeeze()/np.nansum(NO2*mask_trop*delta_p/g/Mair*N_A*1e-4*100.0*1e-15,axis=1).squeeze()
+        # calculate the conversion of trop NO2 to surface mixing ratio in ppbv
+        NO2 = np.nanmean(1e9*NO2*mask_PBL, axis=1).squeeze()/np.nansum(NO2 *
+                                                                       mask_trop*delta_p/g/Mair*N_A*1e-4*100.0*1e-15, axis=1).squeeze()
         # shape up the ctm class
         gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),
                              pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)
@@ -151,10 +153,10 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
         glob.glob(product_dir + "/*tavg1_2d_slv_Nx." + str(YYYYMM) + "*.nc4"))
     if len(tavg3_3d_gas_files) != len(tavg3_3d_met_files):
         raise Exception(
-                "the data are not consistent")
-    # define gas profiles to be saved
+            "the data are not consistent")
+    # define gas profiles for saving
     outputs = Parallel(n_jobs=num_job)(delayed(gmi_reader_wrapper)(
-            tavg3_3d_met_files[k], tavg3_3d_gas_files[k], tavg1_2d_pbl[k]) for k in range(len(tavg3_3d_met_files)))
+        tavg3_3d_met_files[k], tavg3_3d_gas_files[k], tavg1_2d_pbl[k]) for k in range(len(tavg3_3d_met_files)))
     return outputs
 
 
@@ -436,14 +438,14 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
         tropopause = np.empty((1))
     # populate omi class
     omi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center,
-                            longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, 
+                            longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs,
                             [], [], [], train_ref, SZA, surface_terrain)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
         grid_size = 0.25  # degree
         omi_no2 = interpolator(
-            1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)
+            1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)  # bilinear mass-conserved interpolation
     # return
     return omi_no2
 
@@ -458,7 +460,7 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
        Output:
              omi_hcho [satellite_amf]: a dataclass format (see config.py)
     '''
-    # we add "try" because some files have format issue thus unreadable
+    # we add "try" because some files have format issues thus unreadable
     try:
         # say which file is being read
         print("Currently reading: " + fname.split('/')[-1])
@@ -524,7 +526,7 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
         tropopause = np.empty((1))
         # populate omi class
         omi_hcho = satellite_amf(vcd, scd, time, tropopause, latitude_center,
-                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo,SZA, terrain_height)
+                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo, SZA, terrain_height)
         # interpolation
         if (ctm_models_coordinate is not None):
             print('Currently interpolating ...')
@@ -599,17 +601,16 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
     return outputs_sat
 
 
-
 class readers(object):
 
     def __init__(self) -> None:
-        # Read the control file
+        # set the desired location based on control_free.yml
         with open('control_free.yml', 'r') as stream:
             try:
                 ctrl_opts = yaml.safe_load(stream)
             except yaml.YAMLError as exc:
                 raise Exception(exc)
-    
+
         lat1 = ctrl_opts['latll']
         lat2 = ctrl_opts['latur']
         lon1 = ctrl_opts['lonll']
@@ -617,7 +618,8 @@ class readers(object):
         gridsize = ctrl_opts['gridsize']
         lon_grid = np.arange(lon1, lon2+gridsize, gridsize)
         lat_grid = np.arange(lat1, lat2+gridsize, gridsize)
-        self.lons_grid, self.lats_grid = np.meshgrid(lon_grid.astype('float16'), lat_grid.astype('float16'))
+        self.lons_grid, self.lats_grid = np.meshgrid(
+            lon_grid.astype('float16'), lat_grid.astype('float16'))
 
     def add_satellite_data(self, product_name: str, product_dir: Path):
         '''
@@ -677,28 +679,28 @@ class readers(object):
             read ctm data
             Input:
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
-             gases_to_be_saved [str]: name of the gas to be loaded. e.g., 'NO2'
-             frequency_opt: the frequency of data
-                        1 -> hourly 
-                        2 -> 3-hourly
-                        3 -> daily
              num_job [int]: the number of jobs for parallel computation
         '''
-        self.ctm_data = GMI_reader(self.ctm_product_dir.as_posix(), YYYYMM, num_job=num_job)
+        self.ctm_data = GMI_reader(
+            self.ctm_product_dir.as_posix(), YYYYMM, num_job=num_job)
+
 
 # testing
 if __name__ == "__main__":
     sat_path = []
-    sat_path.append(Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_no2_PO3'))
-    sat_path.append(Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_hcho_PO3'))
+    sat_path.append(
+        Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_no2_PO3'))
+    sat_path.append(
+        Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_hcho_PO3'))
     reader_obj = readers()
-    reader_obj.add_ctm_data('GMI', Path('/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'))
+    reader_obj.add_ctm_data('GMI', Path(
+        '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'))
     reader_obj.read_ctm_data('200506', num_job=12)
     # NO2
     reader_obj.add_satellite_data(
-            'OMI_NO2', sat_path[0])
+        'OMI_NO2', sat_path[0])
     reader_obj.read_satellite_data(
-            '200506', read_ak=False, trop=True, num_job=12)
+        '200506', read_ak=False, trop=True, num_job=12)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center

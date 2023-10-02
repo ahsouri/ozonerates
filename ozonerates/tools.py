@@ -69,7 +69,7 @@ def ctmpost(satdata_no2, ctmdata):
                                          np.shape(L2_granule.longitude_center)[0], np.shape(
                                              L2_granule.longitude_center)[1],
                                          ))*np.nan
- 
+
         ctm_mid_T_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
         ctm_height_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
         ctm_O3col_new = np.zeros((np.shape(L2_granule.longitude_center)[0], np.shape(
@@ -103,9 +103,9 @@ def ctmpost(satdata_no2, ctmdata):
         ctm_PBLH_new[:, :] = _interpolosis(tri, ctm_PBLH, sat_coordinate["Longitude"],
                                            sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
         ctm_no2_profile_f_new[:, :] = _interpolosis(tri, ctm_no2_profile_factor, sat_coordinate["Longitude"],
-                                                         sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+                                                    sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
         ctm_hcho_profile_f_new[:, :] = _interpolosis(tri, ctm_hcho_profile_factor, sat_coordinate["Longitude"],
-                                                          sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+                                                     sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
 
         param = param_input(L2_granule.longitude_center, L2_granule.latitude_center, L2_granule.time,
                             ctm_no2_profile_f_new, ctm_hcho_profile_f_new, ctm_O3col_new, ctm_mid_pressure_new,
@@ -159,7 +159,7 @@ def write_to_nc(data, output_file, output_folder='diag'):
     data6[:, :, :] = data.pressure_mid
 
     data7 = ncfile.createVariable(
-        'tempeature_mid', dtype('float32').char, ('z', 'x', 'y'))
+        'tempature_mid', dtype('float32').char, ('z', 'x', 'y'))
     data7[:, :, :] = data.tempeature_mid
 
     data8 = ncfile.createVariable(
@@ -196,6 +196,6 @@ def write_to_nc(data, output_file, output_folder='diag'):
 
     data16 = ncfile.createVariable(
         'surface_alt', dtype('float32').char, ('x', 'y'))
-    data16[:, :] = data.surface_alt   
+    data16[:, :] = data.surface_alt
 
     ncfile.close()

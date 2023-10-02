@@ -57,8 +57,10 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         # upscaling is needed
         size_kernel_x = np.floor(size_grid_model_lon/grid_size)
         size_kernel_y = np.floor(size_grid_model_lat/grid_size)
-        if size_kernel_x == 0 : size_kernel_x = 1
-        if size_kernel_y == 0 : size_kernel_y = 1
+        if size_kernel_x == 0:
+            size_kernel_x = 1
+        if size_kernel_y == 0:
+            size_kernel_y = 1
         kernel = _boxfilter(size_kernel_y, size_kernel_x)
         Z = signal.convolve2d(Z, kernel, boundary='symm', mode='same')
         # define the triangulation
@@ -133,7 +135,8 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
 
     lon_grid = np.arange(lon_ctm_min, lon_ctm_max+grid_size, grid_size)
     lat_grid = np.arange(lat_ctm_min, lat_ctm_max+grid_size, grid_size)
-    lons_grid, lats_grid = np.meshgrid(lon_grid.astype('float16'), lat_grid.astype('float16'))
+    lons_grid, lats_grid = np.meshgrid(
+        lon_grid.astype('float16'), lat_grid.astype('float16'))
     # calculate distance to remove too-far estimates
     tree = cKDTree(points)
     grid = np.zeros((2, np.shape(lons_grid)[0], np.shape(lons_grid)[1]))
@@ -174,11 +177,11 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     _, _, SZA, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.SZA*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
-    
+
     print('....................... Surface Albedo')
     _, _, surface_albedo, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.surface_albedo*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-        ctm_models_coordinate, grid_size, threshold_ctm) 
+        ctm_models_coordinate, grid_size, threshold_ctm)
 
     print('....................... Surface Altitude')
     _, _, surface_alt, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
@@ -189,12 +192,12 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     _, _, mask, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
-    mask[mask>0] = 1.0
+    mask[mask > 0] = 1.0
 
     scattering_weights = np.empty((1))
     pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
-                                     np.shape(upscaled_X)[1]))
+                             np.shape(upscaled_X)[1]))
 
     interpolated_sat = satellite_amf(vcd, scd, sat_data.time, tropopause, latitude_center, longitude_center, [
-        ], [], uncertainty, mask, pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], surface_albedo, SZA, surface_alt)
+    ], [], uncertainty, mask, pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], surface_albedo, SZA, surface_alt)
     return interpolated_sat

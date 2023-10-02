@@ -31,13 +31,14 @@ class ctm_model:
     longitude: np.ndarray
     time: list
     gas_profile_no2: np.ndarray
-    gas_profile_hcho: np.ndarray 
-    O3col: np.ndarray    
+    gas_profile_hcho: np.ndarray
+    O3col: np.ndarray
     pressure_mid: np.ndarray
     tempeature_mid: np.ndarray
     height_mid: np.ndarray
     PBLH: np.ndarray
     ctmtype: str
+
 
 @dataclass
 class param_input:
@@ -45,8 +46,8 @@ class param_input:
     longitude: np.ndarray
     time: datetime.datetime
     gas_profile_no2: np.ndarray
-    gas_profile_hcho: np.ndarray 
-    O3col: np.ndarray    
+    gas_profile_hcho: np.ndarray
+    O3col: np.ndarray
     pressure_mid: np.ndarray
     tempeature_mid: np.ndarray
     height_mid: np.ndarray
