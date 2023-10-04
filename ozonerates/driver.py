@@ -8,7 +8,7 @@ class ozonerates(object):
     def __init__(self) -> None:
         pass
 
-    def read_data(self, ctm_type: str, ctm_path: Path, sat_path: list, YYYYMM: str, read_ak=False, trop=True, num_job=1):
+    def read_data(self, ctm_type: str, ctm_path: Path, sat_path: list, YYYYMM: str, output_folder='diag',read_ak=False, trop=True, num_job=1):
         '''
            This function reads GMI and OMI/TROPOMI NO2 and HCHO data and generate ncfiles at the end
         '''
@@ -31,7 +31,7 @@ class ozonerates(object):
             time_no2 = fno2.time
             time_no2 = time_no2.strftime("%Y%m%d_%H%M%S")
             write_to_nc(fno2, "PO3inputs_NO2_" +
-                        str(time_no2), output_folder='diag')
+                        str(time_no2), output_folder)
         self.o3paramno2 = []
         # HCHO
         reader_obj.add_satellite_data(
@@ -48,7 +48,7 @@ class ozonerates(object):
             time_hcho = fhcho.time
             time_hcho = time_hcho.strftime("%Y%m%d_%H%M%S")
             write_to_nc(fhcho, "PO3inputs_FORM_" +
-                        str(time_hcho), output_folder='diag')
+                        str(time_hcho), output_folder)
 
     def po3estimate_empirical(self, no2_path, hcho_path, startdate, enddate):
         '''

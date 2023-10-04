@@ -1,0 +1,29 @@
+# set your python executable path
+python_bin: '/discover/nobackup/asouri/miniconda3/bin/python3'
+
+# to run the job on debug queue
+debug: False
+
+# number of jobs
+num_job: 36
+
+# set the path of CTM netcdf files (either relative or absolute)
+ctm_dir: '../oisatgmi/download_bucket/gmi/'
+
+# the sensor name (OMI, TROPOMI)
+sensor: 'OMI'
+
+# set the sat dir
+sat_dir_no2: '../oisatgmi/download_bucket/omi_no2/'
+sat_dir_hcho: '../oisatgmi/download_bucket/omi_hcho/'
+
+# starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
+start_date: '2018-01'
+end_date:   '2021-12'
+
+# output folder for PDF reports
+output_pdf_dir: './report_PO3'
+
+# output folder for NC diags
+output_nc_inputparam_dir: './diag_inputparam'
+output_nc_PO3_dir: './diag_PO3'
