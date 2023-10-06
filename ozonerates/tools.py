@@ -159,7 +159,7 @@ def write_to_nc(data, output_file, output_folder='diag'):
     data6[:, :, :] = data.pressure_mid
 
     data7 = ncfile.createVariable(
-        'tempature_mid', dtype('float32').char, ('z', 'x', 'y'))
+        'temperature_mid', dtype('float32').char, ('z', 'x', 'y'))
     data7[:, :, :] = data.tempeature_mid
 
     data8 = ncfile.createVariable(
