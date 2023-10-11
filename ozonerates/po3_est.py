@@ -110,41 +110,52 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         # J4 is NO2+hv-> NO + O
         J4 = (J["J4"])
         J4 = np.array(J4[0, 0])
+
+        J1 = (J["J1"])
+        J1 = np.array(J1[0, 0])
         # linear interpolation (extrapolation is not allowed = NaN)
         J4 = interpn((SZAhybrid.flatten(), ALBhybrid.flatten(), O3Chybrid.flatten(), ALThybrid.flatten()),
                      J4, (SZA.flatten(), surface_albedo_no2.flatten(),
                           O3col.flatten(), surface_alt.flatten()),
                      method="linear", bounds_error=False, fill_value=np.nan)
         J4 = np.reshape(J4, (np.shape(FNR)[0], np.shape(FNR)[1]))
+        J1 = interpn((SZAhybrid.flatten(), ALBhybrid.flatten(), O3Chybrid.flatten(), ALThybrid.flatten()),
+                     J1, (SZA.flatten(), surface_albedo_no2.flatten(),
+                          O3col.flatten(), surface_alt.flatten()),
+                     method="linear", bounds_error=False, fill_value=np.nan)
+        J1 = np.reshape(J1, (np.shape(FNR)[0], np.shape(FNR)[1]))
         # load the lasso coeffs
-        lasso_result = sio.loadmat('lasso_piecewise.mat')
+        lasso_result = sio.loadmat('lasso_piecewise_3group.mat')
         COEFF = lasso_result["COEFF"]
         COEFF0 = lasso_result["COEFF0"]
         COEFF1 = np.array(COEFF[0, 0])
         COEFF2 = np.array(COEFF[0, 1])
-        COEFF3 = np.array(COEFF[0, 2])
+        #COEFF3 = np.array(COEFF[0, 2])
         COEFF01 = np.array(COEFF0[0, 0])
         COEFF02 = np.array(COEFF0[0, 1])
-        COEFF03 = np.array(COEFF0[0, 2])
+        #COEFF03 = np.array(COEFF0[0, 2])
         # estimate PO3
-        threshold1 = 1
-        threshold2 = 3
+        threshold1 = 4
+        threshold2 = 4
         PO3 = np.zeros_like(FNR)*np.nan
         for i in range(0, np.shape(FNR)[0]):
             for j in range(0, np.shape(FNR)[1]):
                 if FNR[i, j] < threshold1:
                     coeff = COEFF1
                     coeff0 = COEFF01
-                elif FNR[i,j] > threshold2:
-                    coeff = COEFF3
-                    coeff0 = COEFF03
-                elif ((FNR[i,j]>=threshold1) and (FNR[i,j]<=threshold2)):
+                elif FNR[i,j] >= threshold2:
                     coeff = COEFF2
-                    coeff0 = COEFF02                    
+                    coeff0 = COEFF02
+                #elif ((FNR[i,j]>=threshold1) and (FNR[i,j]<=threshold2)):
+                #    coeff = COEFF2
+                #    coeff0 = COEFF02 
+                else:
+                    continue                   
 
-                #PO3[i, j] = np.log(FNR[i, j])*coeff[0]
+                PO3[i, j] = PO3[i, j]+(FNR[i, j])*coeff[0]
                 #PO3[i, j] = PO3[i, j]+potential_temp[i, j]*coeff[1]
-                PO3[i, j] = J4[i, j]*coeff[2]*1e3
+                PO3[i, j] = J4[i, j]*coeff[1]*1e3
+                PO3[i, j] = J1[i, j]*coeff[2]*1e3
                 PO3[i, j] = PO3[i, j]+HCHO_ppbv[i, j]*coeff[3]
                 PO3[i, j] = PO3[i, j]+NO2_ppbv[i, j]*coeff[4]
                 PO3[i, j] = PO3[i, j]+coeff0
