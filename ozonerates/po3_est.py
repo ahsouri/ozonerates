@@ -130,12 +130,12 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         COEFF0 = lasso_result["COEFF0"]
         COEFF1 = np.array(COEFF[0, 0])
         COEFF2 = np.array(COEFF[0, 1])
-        #COEFF3 = np.array(COEFF[0, 2])
+        COEFF3 = np.array(COEFF[0, 2])
         COEFF01 = np.array(COEFF0[0, 0])
         COEFF02 = np.array(COEFF0[0, 1])
-        #COEFF03 = np.array(COEFF0[0, 2])
+        COEFF03 = np.array(COEFF0[0, 2])
         # estimate PO3
-        threshold1 = 4
+        threshold1 = 2
         threshold2 = 4
         PO3 = np.zeros_like(FNR)*np.nan
         for i in range(0, np.shape(FNR)[0]):
@@ -146,24 +146,24 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
                 elif FNR[i,j] >= threshold2:
                     coeff = COEFF2
                     coeff0 = COEFF02
-                #elif ((FNR[i,j]>=threshold1) and (FNR[i,j]<=threshold2)):
-                #    coeff = COEFF2
-                #    coeff0 = COEFF02 
+                elif ((FNR[i,j]>=threshold1) and (FNR[i,j]<=threshold2)):
+                    coeff = COEFF3
+                    coeff0 = COEFF03 
                 else:
                     continue                   
 
-                PO3[i, j] = PO3[i, j]+(FNR[i, j])*coeff[0]
+                #PO3[i, j] = PO3[i, j]+(FNR[i, j])*coeff[0]
                 #PO3[i, j] = PO3[i, j]+potential_temp[i, j]*coeff[1]
-                PO3[i, j] = J4[i, j]*coeff[1]*1e3
-                PO3[i, j] = J1[i, j]*coeff[2]*1e3
-                PO3[i, j] = PO3[i, j]+HCHO_ppbv[i, j]*coeff[3]
-                PO3[i, j] = PO3[i, j]+NO2_ppbv[i, j]*coeff[4]
+                PO3[i, j] = J4[i, j]*coeff[0]*1e3
+                PO3[i, j] = PO3[i, j] + J1[i, j]*coeff[1]*1e6
+                PO3[i, j] = PO3[i, j]+HCHO_ppbv[i, j]*coeff[2]
+                PO3[i, j] = PO3[i, j]+NO2_ppbv[i, j]*coeff[3]
                 PO3[i, j] = PO3[i, j]+coeff0
 
         # append inputs and PO3_estimates daily
         PO3_estimates.append(PO3)
         input1.append(np.log(FNR))
-        input2.append(potential_temp)
+        input2.append(J1*1e6)
         input3.append(J4*1e3)
         input4.append(HCHO_ppbv)
         input5.append(NO2_ppbv)
