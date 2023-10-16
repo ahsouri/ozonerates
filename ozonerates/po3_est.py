@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 def _daterange(start_date, end_date):
-    for n in range(int((end_date - start_date).days)):
+    for n in range(int((end_date - start_date).days)+1):
         yield start_date + datetime.timedelta(n)
 
 
@@ -162,7 +162,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
 
         # append inputs and PO3_estimates daily
         PO3_estimates.append(PO3)
-        input1.append(np.log(FNR))
+        input1.append(FNR)
         input2.append(J1*1e6)
         input3.append(J4*1e3)
         input4.append(HCHO_ppbv)

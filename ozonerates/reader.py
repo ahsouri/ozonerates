@@ -139,6 +139,10 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
         # calculate the conversion of trop NO2 to surface mixing ratio in ppbv
         NO2 = np.nanmean(1e9*NO2*mask_PBL, axis=1).squeeze()/np.nansum(NO2 *
                                                                        mask_trop*delta_p/g/Mair*N_A*1e-4*100.0*1e-15, axis=1).squeeze()
+        #subset the vertical grids to reduce memory usage
+        pressure_mid = pressure_mid[:,0:24,:,:]
+        temperature_mid = temperature_mid[:,0:24,:,:]
+        height_mid = height_mid[:,0:24,:,:]
         # shape up the ctm class
         gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),
                              pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)

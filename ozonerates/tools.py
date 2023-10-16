@@ -10,7 +10,7 @@ from numpy import dtype
 import numpy as np
 
 
-def ctmpost(satdata_no2, ctmdata):
+def ctmpost(satdata, ctmdata):
 
     print('Mapping CTM data into Sat grid...')
     # list the time in ctm_data
@@ -33,7 +33,7 @@ def ctmpost(satdata_no2, ctmdata):
     # loop over the satellite list
     counter = 0
     params = []
-    for L2_granule in satdata_no2:
+    for L2_granule in satdata:
         if (L2_granule is None):
             counter += 1
             continue
