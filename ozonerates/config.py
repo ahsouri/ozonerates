@@ -58,3 +58,23 @@ class param_input:
     surface_albedo: np.ndarray
     SZA: np.ndarray
     surface_alt: np.ndarray
+
+@dataclass
+class param_output:
+    latitude: np.ndarray
+    longitude: np.ndarray
+    vcd_no2: np.ndarray
+    vcd_no2_factor: np.ndarray
+    vcd_hcho: np.ndarray
+    vcd_hcho_factor: np.ndarray
+    PO3: np.ndarray
+    FNR: np.ndarray
+    hcho_vmr: np.ndarray
+    no2_vmr: np.ndarray
+    jno2: np.ndarray
+    jo1d: np.ndarray
+    hcho_vmr_contrib: np.ndarray
+    no2_vmr_contrib: np.ndarray
+    jno2_contrib: np.ndarray
+    jo1d_contrib: np.ndarray
+      

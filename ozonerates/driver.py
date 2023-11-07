@@ -1,6 +1,7 @@
 from ozonerates.reader import readers
 from ozonerates.tools import  write_to_nc, ctmpost
 from ozonerates.po3_est import PO3est_empirical
+from ozonerates.report import report
 from pathlib import Path
 
 class ozonerates(object):
@@ -52,12 +53,15 @@ class ozonerates(object):
 
     def po3estimate_empirical(self, no2_path, hcho_path, startdate, enddate):
         '''
-           Forward estimation of PO3 using LASSO regression output (lasso_piecewise.mat)
+           Forward estimation of PO3 using LASSO regression output (lasso_piecewise_3group.mat)
         '''
-        PO3est_empirical(no2_path, hcho_path, startdate, enddate)
+        self.PO3_output_empirical = PO3est_empirical(no2_path, hcho_path, startdate, enddate)
 
-    def reporting(self, fname: str, gasname, folder='report'):
-        pass
+    def reporting(self, fname: str, folder='report'):
+        '''
+           Making pdf reports
+        '''
+        report(self.PO3_output_empirical, fname, folder)
 
 
 # testing
@@ -69,7 +73,8 @@ if __name__ == "__main__":
         Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_no2_PO3'))
     sat_path.append(
         Path('/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/omi_hcho_PO3'))
-    ozonerates_obj.read_data('GMI', Path('/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'),
-                             sat_path, '200506', read_ak=False, trop=True, num_job=12)
+    #ozonerates_obj.read_data('GMI', Path('/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'),
+    #                         sat_path, '200506', read_ak=False, trop=True, num_job=12)
     ozonerates_obj.po3estimate_empirical(
         "./diag", "./diag", '2005-06-01', '2005-06-30')
+    ozonerates_obj.reporting("PO3_estimates.pdf")
