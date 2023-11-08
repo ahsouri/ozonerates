@@ -5,7 +5,7 @@ python_bin: '/discover/nobackup/asouri/miniconda3/bin/python3'
 debug: False
 
 # number of jobs
-num_job: 36
+num_job: 24
 
 # set the path of CTM netcdf files (either relative or absolute)
 ctm_dir: '../oisatgmi/download_bucket/gmi/'
@@ -18,8 +18,8 @@ sat_dir_no2: '../oisatgmi/download_bucket/omi_no2/'
 sat_dir_hcho: '../oisatgmi/download_bucket/omi_hcho/'
 
 # starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
-start_date: '2018-01'
-end_date:   '2021-12'
+start_date: '2010-06'
+end_date:   '2010-09'
 
 # output folder for PDF reports
 output_pdf_dir: './report_PO3'
