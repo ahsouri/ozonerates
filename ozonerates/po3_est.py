@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 def _daterange(start_date, end_date):
-    for n in range(int((end_date - start_date).days)+1):
+    for n in range(int((end_date - start_date).days)):
         yield start_date + datetime.timedelta(n)
 
 
@@ -39,6 +39,19 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
 
     PO3_estimates = []
     inputs = {}
+    inputs["FNR"]=[]
+    inputs["J1"]=[]
+    inputs["J4"]=[]
+    inputs["HCHO_ppbv"]=[]
+    inputs["NO2_ppbv"]=[]
+    inputs["PO3_J4"]=[]
+    inputs["PO3_J1"]=[]
+    inputs["PO3_HCHO"]=[]
+    inputs["PO3_NO2"]=[]
+    inputs["VCD_NO2"]=[]
+    inputs["VCD_FORM"]=[]
+    inputs["PBL_no2_factor"]=[]
+    inputs["PBL_form_factor"]=[]
     for single_date in _daterange(start_date, end_date):
 
         no2_files = sorted((glob.glob(no2_path + "/*_NO2_" + str(single_date.year) + f"{single_date.month:02}"
@@ -160,10 +173,10 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
                 PO3[i, j, 4] = coeff0
 
         # append inputs and PO3_estimates daily
-        PO3_estimates.append(np.nansum(PO3, axis=2))
+        PO3_estimates.append(np.sum(PO3, axis=2))
         inputs["FNR"].append(FNR)
-        inputs["J1"].append(J1)
-        inputs["J4"].append(J4)
+        inputs["J1"].append(J1*1e6)
+        inputs["J4"].append(J4*1e3)
         inputs["HCHO_ppbv"].append(HCHO_ppbv)
         inputs["NO2_ppbv"].append(NO2_ppbv)
         inputs["PO3_J4"].append(PO3[:, :, 0].squeeze())
@@ -191,5 +204,5 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
     PO3_estimates = np.array(PO3_estimates)
 
     output = param_output(latitude, longitude, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
-                          FNR, HCHO_ppbv, NO2_ppbv, J1, J4, HCHO_contrib, NO2_contrib, J1_contrib, J4_contrib)
+                          FNR, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib)
     return output

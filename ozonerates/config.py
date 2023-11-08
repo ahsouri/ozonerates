@@ -42,8 +42,8 @@ class ctm_model:
 
 @dataclass
 class param_input:
-    latitude: np.ndarray
     longitude: np.ndarray
+    latitude: np.ndarray
     time: datetime.datetime
     gas_profile_no2: np.ndarray
     gas_profile_hcho: np.ndarray

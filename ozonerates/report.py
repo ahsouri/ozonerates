@@ -47,11 +47,13 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
     elif unit == 3:
         cbar.set_label('$ [ppbv/hr] $', fontsize=18)
     elif unit == 4:
-        cbar.set_label(r'$[ \times 10^{18}molec.cm^{-2}] $', fontsize=18)
+        cbar.set_label(r'$[ \times ppbv/10^{15}molec.cm^{-2}] $', fontsize=18)
     elif unit == 5:
         cbar.set_label(r'$[ppbv] $', fontsize=18)
     elif unit == 6:
-        cbar.set_label(r'$[s^{-1}] $', fontsize=18)
+        cbar.set_label(r'$[\times 10^{3}s^{-1}] $', fontsize=18)
+    elif unit == 7:
+        cbar.set_label(r'$[\times 10^{6}s^{-1}] $', fontsize=18)
     plt.title(title, loc='left', fontweight='bold', fontsize=20)
     plt.tight_layout()
     fig.savefig(fname, format='png', dpi=300)
@@ -119,32 +121,32 @@ def report(data,fname:str,folder:str):
     if not os.path.exists('temp'):
         os.makedirs('temp')
 
-    plotter(data.lon, data.lat, data.vcd_no2, 'temp/vcd_no2_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_no2,axis=0).squeeze(), 'temp/A_vcd_no2_' +
             fname + '.png', 'VCD NO2', 1, 0, 5)
-    plotter(data.lon, data.lat, data.vcd_form, 'temp/vcd_form_' +
-            fname + '.png', 'VCD FORM', 1, 0, 10)
-    plotter(data.lon, data.lat, data.hcho_vmr, 'temp/vcd_form_vmr_' +
-            fname + '.png', 'HCHO vmr (PBL)', 5, 0, 2)
-    plotter(data.lon, data.lat, data.no2_vmr, 'temp/vcd_no2_vmr_' +
+    plotter(data.longitude, data.latitude,  np.nanmean(data.vcd_hcho,axis=0).squeeze(), 'temp/D_vcd_form_' +
+            fname + '.png', 'VCD FORM', 1, 0, 15)
+    plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr,axis=0).squeeze(), 'temp/E_vcd_form_vmr_' +
+            fname + '.png', 'HCHO vmr (PBL)', 5, 0, 3)
+    plotter(data.longitude, data.latitude,np.nanmean(data.no2_vmr,axis=0).squeeze(), 'temp/C_vcd_no2_vmr_' +
             fname + '.png', 'NO2 vmr (PBL)', 5, 0, 5)
-    plotter(data.lon, data.lat, data.vcd_no2_factor, 'temp/vcd_no2_factor_' +
-            fname + '.png', 'NO2 factor (PBL)', 1, 0, 5)
-    plotter(data.lon, data.lat, data.vcd_hcho_factor, 'temp/vcd_hcho_factor_' +
-            fname + '.png', 'FORM factor (PBL)', 1, 0, 5)
-    plotter(data.lon, data.lat, data.FNR, 'temp/fnr_' +
-            fname + '.png', 'FNR (PBL)', 2, 0, 5)
-    plotter(data.lon, data.lat, data.jo1d*1e6, 'temp/jo1d_' +
-            fname + '.png', 'JO1D', 6, 0, 5)    
-    plotter(data.lon, data.lat, data.jno2*1e3, 'temp/jno2_' +
-            fname + '.png', 'JNO2', 6, 0, 5)
-    plotter(data.lon, data.lat, data.jno2_contrib, 'temp/jno2_contrib_' +
-            fname + '.png', 'JNO2 contribution to PO3', 3, 0, 2)    
-    plotter(data.lon, data.lat, data.jo1d_contrib, 'temp/jo1d_contrib_' +
-            fname + '.png', 'JO1D contribution to PO3', 3, 0, 2)  
-    plotter(data.lon, data.lat, data.hcho_vmr_contrib, 'temp/hcho_contrib_' +
-            fname + '.png', 'FORM contribution to PO3', 3, 0, 2)
-    plotter(data.lon, data.lat, data.no2_vmr_contrib, 'temp/no2_contrib_' +
-            fname + '.png', 'NO2 contribution to PO3', 3, 0, 2)
-    plotter(data.lon, data.lat, data.PO3, 'temp/po3_' +
-            fname + '.png', 'PO3', 3, 0, 8)  
+    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_no2_factor,axis=0).squeeze(), 'temp/B_vcd_no2_factor_' +
+            fname + '.png', 'NO2 factor (PBL)', 4, 0, 0.5)
+    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_hcho_factor,axis=0).squeeze(), 'temp/F_vcd_hcho_factor_' +
+            fname + '.png', 'FORM factor (PBL)', 4, 0, 0.5)
+    plotter(data.longitude, data.latitude, np.nanmean(data.FNR,axis=0).squeeze(), 'temp/G_fnr_' +
+            fname + '.png', 'FNR (PBL)', 2, 0, 10)
+    plotter(data.longitude, data.latitude, np.nanmean(data.jo1d,axis=0).squeeze(), 'temp/H_jo1d_' +
+            fname + '.png', 'JO1D', 7, 0, 100)    
+    plotter(data.longitude, data.latitude, np.nanmean(data.jno2,axis=0).squeeze(), 'temp/I_jno2_' +
+            fname + '.png', 'JNO2', 6, 0, 20)
+    plotter(data.longitude, data.latitude, np.nanmean(data.jno2_contrib,axis=0).squeeze(), 'temp/K_jno2_contrib_' +
+            fname + '.png', 'JNO2 contribution to PO3', 3, 0, 3)    
+    plotter(data.longitude, data.latitude, np.nanmean(data.jo1d_contrib,axis=0).squeeze(), 'temp/J_jo1d_contrib_' +
+            fname + '.png', 'JO1D contribution to PO3', 3, 0, 3)  
+    plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr_contrib,axis=0).squeeze(), 'temp/L_hcho_contrib_' +
+            fname + '.png', 'FORM contribution to PO3', 3, 0, 3)
+    plotter(data.longitude, data.latitude, np.nanmean(data.no2_vmr_contrib,axis=0).squeeze(), 'temp/M_no2_contrib_' +
+            fname + '.png', 'NO2 contribution to PO3', 3, 0, 3)
+    plotter(data.longitude, data.latitude, np.nanmean(data.PO3,axis=0).squeeze(), 'temp/N_po3_' +
+            fname + '.png', 'PO3', 3, 0, 8)
     topdf(fname, folder, 'PO3_report_' + fname + '.pdf')
