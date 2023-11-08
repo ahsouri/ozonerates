@@ -140,13 +140,13 @@ def report(data,fname:str,folder:str):
     plotter(data.longitude, data.latitude, np.nanmean(data.jno2,axis=0).squeeze(), 'temp/I_jno2_' +
             fname + '.png', 'JNO2', 6, 0, 20)
     plotter(data.longitude, data.latitude, np.nanmean(data.jno2_contrib,axis=0).squeeze(), 'temp/K_jno2_contrib_' +
-            fname + '.png', 'JNO2 contribution to PO3', 3, 0, 3)    
+            fname + '.png', 'JNO2 contribution to PO3', 3, -1, 3)    
     plotter(data.longitude, data.latitude, np.nanmean(data.jo1d_contrib,axis=0).squeeze(), 'temp/J_jo1d_contrib_' +
-            fname + '.png', 'JO1D contribution to PO3', 3, 0, 3)  
+            fname + '.png', 'JO1D contribution to PO3', 3, -1, 3)  
     plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr_contrib,axis=0).squeeze(), 'temp/L_hcho_contrib_' +
-            fname + '.png', 'FORM contribution to PO3', 3, 0, 3)
+            fname + '.png', 'FORM contribution to PO3', 3, -1, 3)
     plotter(data.longitude, data.latitude, np.nanmean(data.no2_vmr_contrib,axis=0).squeeze(), 'temp/M_no2_contrib_' +
-            fname + '.png', 'NO2 contribution to PO3', 3, 0, 3)
+            fname + '.png', 'NO2 contribution to PO3', 3, -1, 3)
     plotter(data.longitude, data.latitude, np.nanmean(data.PO3,axis=0).squeeze(), 'temp/N_po3_' +
-            fname + '.png', 'PO3', 3, 0, 8)
+            fname + '.png', 'PO3', 3, -1, 8)
     topdf(fname, folder, 'PO3_report_' + fname + '.pdf')
