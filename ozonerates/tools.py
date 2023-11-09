@@ -216,7 +216,6 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
     ncfile.createDimension('x', np.shape(data.latitude)[0])
     ncfile.createDimension('y', np.shape(data.latitude)[1])
     ncfile.createDimension('t', np.shape(data.vcd_no2)[0])
-    ncfile.createDimension('t', None)
 
     data1 = ncfile.createVariable(
         'latitude', dtype('float32').char, ('x', 'y'))
@@ -240,7 +239,7 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
 
     data6 = ncfile.createVariable(
         'vcd_hcho', dtype('float32').char, ('t', 'x', 'y'))
-    data6[:, :, :] = data.vcd_hcho_factor
+    data6[:, :, :] = data.vcd_hcho
 
     data7 = ncfile.createVariable(
         'PO3', dtype('float32').char, ('t', 'x', 'y'))

@@ -66,7 +66,7 @@ class ozonerates(object):
     def writenc(self, fname: str, folder='diag'):
         '''
            Making nc diags
-        '''        
+        '''
         write_to_nc_product(self.PO3_output_empirical,fname, folder)
 
 
