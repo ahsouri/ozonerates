@@ -1,5 +1,5 @@
 from ozonerates.reader import readers
-from ozonerates.tools import  write_to_nc, ctmpost
+from ozonerates.tools import  write_to_nc, ctmpost, write_to_nc_product
 from ozonerates.po3_est import PO3est_empirical
 from ozonerates.report import report
 from pathlib import Path
@@ -62,6 +62,12 @@ class ozonerates(object):
            Making pdf reports
         '''
         report(self.PO3_output_empirical, fname, folder)
+
+    def writenc(self, fname: str, folder='diag'):
+        '''
+           Making nc diags
+        '''        
+        write_to_nc_product(self.PO3_output_empirical,fname, folder)
 
 
 # testing

@@ -199,3 +199,91 @@ def write_to_nc(data, output_file, output_folder='diag'):
     data16[:, :] = data.surface_alt
 
     ncfile.close()
+
+def write_to_nc_product(data, output_file, output_folder='diag'):
+    ''' 
+    Write the final results to a netcdf
+    ARGS:
+        output_file (char): the name of file to be outputted
+    '''
+    # writing
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    ncfile = Dataset(output_folder + '/' + output_file + '.nc', 'w')
+
+    # create the x and y dimensions.
+    ncfile.createDimension('x', np.shape(data.latitude)[0])
+    ncfile.createDimension('y', np.shape(data.latitude)[1])
+    ncfile.createDimension('t', np.shape(data.vcd_no2)[0])
+    ncfile.createDimension('t', None)
+
+    data1 = ncfile.createVariable(
+        'latitude', dtype('float32').char, ('x', 'y'))
+    data1[:, :] = data.latitude
+
+    data2 = ncfile.createVariable(
+        'longitude', dtype('float32').char, ('x', 'y'))
+    data2[:, :] = data.longitude
+
+    #data3 = ncfile.createVariable(
+    #    'time', 'S1', ('t'))
+    #data3 = data.time.strftime("%Y-%m-%d %H:%M:%S")
+
+    data4 = ncfile.createVariable(
+        'vcd_no2', dtype('float32').char, ('t','x', 'y'))
+    data4[:, :] = data.vcd_no2
+
+    data5 = ncfile.createVariable(
+        'vcd_no2_factor', dtype('float32').char, ('t', 'x', 'y'))
+    data5[:, :] = data.vcd_no2_factor
+
+    data6 = ncfile.createVariable(
+        'vcd_hcho', dtype('float32').char, ('t', 'x', 'y'))
+    data6[:, :, :] = data.vcd_hcho_factor
+
+    data7 = ncfile.createVariable(
+        'PO3', dtype('float32').char, ('t', 'x', 'y'))
+    data7[:, :, :] = data.PO3
+
+    data8 = ncfile.createVariable(
+        'FNR', dtype('float32').char, ('t', 'x', 'y'))
+    data8[:, :, :] = data.FNR
+
+    data9 = ncfile.createVariable(
+        'hcho_vmr', dtype('float32').char, ('t', 'x', 'y'))
+    data9[:, :, :] = data.hcho_vmr
+
+    data10 = ncfile.createVariable(
+        'no2_vmr', dtype('float32').char, ('t', 'x', 'y'))
+    data10[:, :, :] = data.no2_vmr
+
+    data11 = ncfile.createVariable(
+        'vcd_hcho_factor', dtype('float32').char, ('t', 'x', 'y'))
+    data11[:, :, :] = data.vcd_hcho_factor
+
+    data12 = ncfile.createVariable(
+        'jo1d', dtype('float32').char, ('t', 'x', 'y'))
+    data12[:, :, :] = data.jo1d
+
+    data13 = ncfile.createVariable(
+        'jno2', dtype('float32').char, ('t', 'x', 'y'))
+    data13[:, :, :] = data.jno2
+
+    data14 = ncfile.createVariable(
+        'hcho_vmr_contrib', dtype('float32').char, ('t', 'x', 'y'))
+    data14[:, :, :] = data.hcho_vmr_contrib
+
+    data15 = ncfile.createVariable(
+        'no2_vmr_contrib', dtype('float32').char, ('t', 'x', 'y'))
+    data15[:, :, :] = data.no2_vmr_contrib
+
+    data16 = ncfile.createVariable(
+        'jno2_contrib', dtype('float32').char, ('t', 'x', 'y'))
+    data16[:, :, :] = data.jno2_contrib
+
+    data17 = ncfile.createVariable(
+        'jo1d_contrib', dtype('float32').char, ('t', 'x', 'y'))
+    data17[:, :, :] = data.jo1d_contrib
+
+    ncfile.close()
