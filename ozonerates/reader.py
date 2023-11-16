@@ -404,7 +404,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
 
     train_ref = quality_flag_temp = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'TerrainReflectivity').astype('float16')
-    train_ref_mask = train_ref < 0.4
+    train_ref_mask = train_ref < 0.6
     train_ref_mask = np.multiply(train_ref_mask, 1.0).squeeze()
 
     quality_flag_temp = _read_group_nc(
@@ -419,6 +419,9 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
                 if flag[-2] == '0':
                     quality_flag[i, j] = 1.0
     quality_flag = quality_flag*cf_fraction_mask*train_ref_mask
+    # remove edges because their footprint is large
+    quality_flag[:,0:2]=-100.0
+    quality_flag[:,-2::]=-100.0
     # read pressures for SWs
     ps = _read_group_nc(fname, ['GEOLOCATION_DATA'],
                         'ScatteringWeightPressure').astype('float16')
@@ -508,6 +511,9 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
         quality_flag = np.multiply(quality_flag, 1.0).squeeze()
 
         quality_flag = quality_flag*cf_fraction_mask
+        # remove edges because their footprint is large
+        quality_flag[:,0:2]=-100.0
+        quality_flag[:,-2::]=-100.0
         # read pressures for SWs
         ps = _read_group_nc(fname, ['support_data'],
                             'surface_pressure').astype('float16')
@@ -560,7 +566,7 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
     '''
 
     # find L2 files first
-    L2_files = sorted(glob.glob(product_dir + "/*" + str(YYYYMM) + "*.nc"))
+    L2_files = sorted(glob.glob(product_dir + "/S5P_*" + "_L2__*__" + str(YYYYMM) + "*.nc"))
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(tropomi_reader_no2)(
@@ -700,7 +706,7 @@ if __name__ == "__main__":
     reader_obj = readers()
     reader_obj.add_ctm_data('GMI', Path(
         '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'))
-    reader_obj.read_ctm_data('200506', num_job=12)
+    #reader_obj.read_ctm_data('200506', num_job=12)
     # NO2
     reader_obj.add_satellite_data(
         'OMI_NO2', sat_path[0])

@@ -113,7 +113,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         FNR = (HCHO_ppbv/NO2_ppbv)
 
         # extrating J values from a LUT
-        Jvalue = sio.loadmat('HybridJtables.mat')
+        Jvalue = sio.loadmat('../data/HybridJtables.mat')
         SZAhybrid = Jvalue["SZAhybrid"][:, 0, 0, 0]
         ALBhybrid = Jvalue["ALBhybrid"][0, :, 0, 0]
         O3Chybrid = Jvalue["O3Chybrid"][0, 0, :, 0]
@@ -137,7 +137,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
                      method="linear", bounds_error=False, fill_value=np.nan)
         J1 = np.reshape(J1, (np.shape(FNR)[0], np.shape(FNR)[1]))
         # load the lasso coeffs
-        lasso_result = sio.loadmat('lasso_piecewise_3group.mat')
+        lasso_result = sio.loadmat('../data/lasso_piecewise_3group.mat')
         COEFF = lasso_result["COEFF"]
         COEFF0 = lasso_result["COEFF0"]
         COEFF1 = np.array(COEFF[0, 0])

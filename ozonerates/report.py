@@ -124,19 +124,19 @@ def report(data,fname:str,folder:str):
     plotter(data.longitude, data.latitude, np.nanmean(data.vcd_no2,axis=0).squeeze(), 'temp/A_vcd_no2_' +
             fname + '.png', 'VCD NO2', 1, 0, 5)
     plotter(data.longitude, data.latitude,  np.nanmean(data.vcd_hcho,axis=0).squeeze(), 'temp/D_vcd_form_' +
-            fname + '.png', 'VCD FORM', 1, 0, 15)
+            fname + '.png', 'VCD FORM', 1, 0, 25)
     plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr,axis=0).squeeze(), 'temp/E_vcd_form_vmr_' +
-            fname + '.png', 'HCHO vmr (PBL)', 5, 0, 3)
+            fname + '.png', 'HCHO vmr (PBL)', 5, 0, 5)
     plotter(data.longitude, data.latitude,np.nanmean(data.no2_vmr,axis=0).squeeze(), 'temp/C_vcd_no2_vmr_' +
-            fname + '.png', 'NO2 vmr (PBL)', 5, 0, 5)
+            fname + '.png', 'NO2 vmr (PBL)', 5, 0, 2)
     plotter(data.longitude, data.latitude, np.nanmean(data.vcd_no2_factor,axis=0).squeeze(), 'temp/B_vcd_no2_factor_' +
-            fname + '.png', 'NO2 factor (PBL)', 4, 0, 0.5)
+            fname + '.png', 'NO2 factor (PBL)', 4, 0, 0.3)
     plotter(data.longitude, data.latitude, np.nanmean(data.vcd_hcho_factor,axis=0).squeeze(), 'temp/F_vcd_hcho_factor_' +
-            fname + '.png', 'FORM factor (PBL)', 4, 0, 0.5)
+            fname + '.png', 'FORM factor (PBL)', 4, 0, 0.3)
     plotter(data.longitude, data.latitude, np.nanmean(data.FNR,axis=0).squeeze(), 'temp/G_fnr_' +
             fname + '.png', 'FNR (PBL)', 2, 0, 10)
     plotter(data.longitude, data.latitude, np.nanmean(data.jo1d,axis=0).squeeze(), 'temp/H_jo1d_' +
-            fname + '.png', 'JO1D', 7, 0, 100)    
+            fname + '.png', 'JO1D', 7, 0, 100)
     plotter(data.longitude, data.latitude, np.nanmean(data.jno2,axis=0).squeeze(), 'temp/I_jno2_' +
             fname + '.png', 'JNO2', 6, 0, 20)
     plotter(data.longitude, data.latitude, np.nanmean(data.jno2_contrib,axis=0).squeeze(), 'temp/K_jno2_contrib_' +
