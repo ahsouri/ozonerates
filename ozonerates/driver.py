@@ -9,7 +9,7 @@ class ozonerates(object):
     def __init__(self) -> None:
         pass
 
-    def read_data(self, ctm_type: str, ctm_path: Path, sat_path: list, YYYYMM: str, output_folder='diag', read_ak=False, trop=True, num_job=1):
+    def read_data(self, ctm_type: str, sensor: str, ctm_path: Path, sat_path: list, YYYYMM: str, output_folder='diag', read_ak=False, trop=True, num_job=1):
         '''
            This function reads GMI and OMI/TROPOMI NO2 and HCHO data and generate ncfiles at the end
         '''
@@ -20,7 +20,7 @@ class ozonerates(object):
         self.ctmdata = reader_obj.ctm_data
         # NO2
         reader_obj.add_satellite_data(
-            'OMI_NO2', sat_path[0])
+            sensor + '_NO2', sat_path[0])
         reader_obj.read_satellite_data(
             YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
         self.satno2 = reader_obj.sat_data
@@ -36,7 +36,7 @@ class ozonerates(object):
         self.o3paramno2 = []
         # HCHO
         reader_obj.add_satellite_data(
-            'OMI_HCHO', sat_path[1])
+            sensor + '_HCHO', sat_path[1])
         reader_obj.read_satellite_data(
             YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
         self.sathcho = reader_obj.sat_data

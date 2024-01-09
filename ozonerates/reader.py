@@ -209,7 +209,13 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     tm5_b = _read_group_nc(
         fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_b')
     ps = _read_group_nc(fname, [
-                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float16')/100.0
+                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float32')/100.0
+    surface_alt = _read_group_nc(fname, [
+                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
+    surface_albedo = _read_group_nc(fname, [
+                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo').astype('float32')
+    SZA = _read_group_nc(fname, [
+                        'PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
     p_mid = np.zeros(
         (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
     if read_ak == True:
@@ -233,7 +239,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
 
     tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), latitude_center, longitude_center,
-                                [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
+                                [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo, SZA, surface_alt)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -303,6 +309,12 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
 
     ps = _read_group_nc(fname, [
                         'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float32')/100.0
+    surface_alt = _read_group_nc(fname, [
+                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
+    surface_albedo = _read_group_nc(fname, [
+                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo').astype('float32')
+    SZA = _read_group_nc(fname, [
+                        'PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
     p_mid = np.zeros(
         (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
     if read_ak == True:
@@ -334,7 +346,7 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
     else:
         tropopause = np.empty((1))
     tropomi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center, longitude_center,
-                                [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
+                                [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo, SZA, surface_alt)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
