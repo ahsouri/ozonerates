@@ -51,8 +51,94 @@ def _read_group_nc(filename, group, var):
     nc_fid.close()
     return np.squeeze(out)
 
+def gmi_reader_wrapper(fname_met: str, fname_gas: str, fname_pbl: str) -> ctm_model:
+     # a nested function to make the code in parallel
+     print("Currently reading: " + fname_met.split('/')[-1])
+     Mair = 28.97e-3
+     g = 9.80665
+     N_A = 6.02214076e23
+     # read the data
+     print("Currently reading: " + fname_met.split('/')[-1])
+     ctmtype = "GMI"
+     # read coordinates
+     lon = _read_nc(fname_met, 'lon')
+     lat = _read_nc(fname_met, 'lat')
+     lons_grid, lats_grid = np.meshgrid(lon, lat)
+     latitude = lats_grid
+     longitude = lons_grid
+     # read time
+     time_min_delta = _read_nc(fname_met, 'time')
+     time_attr = _get_nc_attr(fname_met, 'time')
+     timebegin_date = str(time_attr["begin_date"])
+     timebegin_time = str(time_attr["begin_time"])
+     if len(timebegin_time) == 5:
+         timebegin_time = "0" + timebegin_time
+         timebegin_date = [int(timebegin_date[0:4]), int(
+            timebegin_date[4:6]), int(timebegin_date[6:8])]
+         timebegin_time = [int(timebegin_time[0:2]), int(
+            timebegin_time[2:4]), int(timebegin_time[4:6])]
+     time = []
+     for t in range(0, np.size(time_min_delta)):
+         time.append(datetime.datetime(timebegin_date[0], timebegin_date[1], timebegin_date[2],
+                           timebegin_time[0], timebegin_time[1], timebegin_time[2]) +
+                           datetime.timedelta(minutes=int(time_min_delta[t])))
+     # read pressure, temperature, PBL and other met information
+     delta_p = _read_nc(fname_met, 'DELP').astype('float32')/100.0
+     delta_p = np.flip(delta_p, axis=1)  # from bottom to top
+     pressure_mid = _read_nc(fname_met, 'PL').astype('float32')/100.0
+     pressure_mid = np.flip(pressure_mid, axis=1)  # from bottom to top
+     temperature_mid = _read_nc(fname_met, 'T').astype('float32')
+     temperature_mid = np.flip(
+         temperature_mid, axis=1)  # from bottom to top
+     height_mid = _read_nc(fname_met, 'H')/1000.0
+     height_mid = np.flip(height_mid, axis=1)  # from bottom to top
+     PBL = _read_nc(fname_pbl, 'PBLTOP')/100.0
+     PBL = PBL[2::3, :, :]  # 1-hourly to 3-hourly
+     tropp = _read_nc(fname_pbl, 'TROPPB')/100.0
+     # read ozone
+     O3 = np.flip(_read_nc(
+         fname_gas, 'O3'), axis=1)
+     # integrate ozone (dobson unit)
+     O3 = O3*delta_p/g/Mair*N_A*1e-4*100.0/2.69e16
+     O3 = np.sum(O3, axis=1).squeeze()
+     # read hcho profiles
+     HCHO = np.flip(_read_nc(
+         fname_gas, 'CH2O'), axis=1)
+     # making a mask for the PBL region (it's 4D)
+     mask_PBL = np.zeros_like(pressure_mid)
+     for a in range(0, np.shape(mask_PBL)[0]):
+         for b in range(0, np.shape(mask_PBL)[1]):
+             mask_PBL[a, b, :, :] = pressure_mid[a, b, :,
+                                  :].squeeze() >= PBL[a, :, :].squeeze()
+     mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
+     mask_PBL[mask_PBL != 1.0] = np.nan
+     # calculate the conversion of total HCHO to surface mixing ratio in ppbv
+     HCHO = np.nanmean(1e9*HCHO*mask_PBL, axis=1).squeeze() / \
+         np.sum(HCHO*delta_p/g/Mair*N_A*1e-4*100.0*1e-15, axis=1).squeeze()
+     # calculate no2 profiles
+     NO2 = np.flip(_read_nc(
+         fname_gas, 'NO2'), axis=1)
+     # making a mask for the troposphere
+     mask_trop = np.zeros_like(pressure_mid)
+     for a in range(0, np.shape(mask_trop)[0]):
+         for b in range(0, np.shape(mask_trop)[1]):
+             mask_trop[a, b, :, :] = pressure_mid[a, b, :,
+                                   :].squeeze() >= tropp[a, :, :].squeeze()
+     mask_trop = np.multiply(mask_trop, 1.0).squeeze()
+     mask_trop[mask_trop != 1.0] = np.nan
+     # calculate the conversion of trop NO2 to surface mixing ratio in ppbv
+     NO2 = np.nanmean(1e9*NO2*mask_PBL, axis=1).squeeze()/np.nansum(NO2 *
+                                     mask_trop*delta_p/g/Mair*N_A*1e-4*100.0*1e-15, axis=1).squeeze()
+     #subset the vertical grids to reduce memory usage
+     pressure_mid = pressure_mid[:,0:24,:,:]
+     temperature_mid = temperature_mid[:,0:24,:,:]
+     height_mid = height_mid[:,0:24,:,:]
+     # shape up the ctm class
+     gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),
+                                  pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)
+     return gmi_data
 
-def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
+def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> list:
     '''
        GMI reader
        Inputs:
@@ -62,92 +148,6 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> ctm_model:
        Output:
              gmi_fields [ctm_model]: a dataclass format (see config.py)
     '''
-    # a nested function to make the code in parallel
-    def gmi_reader_wrapper(fname_met: str, fname_gas: str, fname_pbl: str) -> ctm_model:
-        Mair = 28.97e-3
-        g = 9.80665
-        N_A = 6.02214076e23
-        # read the data
-        print("Currently reading: " + fname_met.split('/')[-1])
-        ctmtype = "GMI"
-        # read coordinates
-        lon = _read_nc(fname_met, 'lon')
-        lat = _read_nc(fname_met, 'lat')
-        lons_grid, lats_grid = np.meshgrid(lon, lat)
-        latitude = lats_grid
-        longitude = lons_grid
-        # read time
-        time_min_delta = _read_nc(fname_met, 'time')
-        time_attr = _get_nc_attr(fname_met, 'time')
-        timebegin_date = str(time_attr["begin_date"])
-        timebegin_time = str(time_attr["begin_time"])
-        if len(timebegin_time) == 5:
-            timebegin_time = "0" + timebegin_time
-        timebegin_date = [int(timebegin_date[0:4]), int(
-            timebegin_date[4:6]), int(timebegin_date[6:8])]
-        timebegin_time = [int(timebegin_time[0:2]), int(
-            timebegin_time[2:4]), int(timebegin_time[4:6])]
-        time = []
-        for t in range(0, np.size(time_min_delta)):
-            time.append(datetime.datetime(timebegin_date[0], timebegin_date[1], timebegin_date[2],
-                                          timebegin_time[0], timebegin_time[1], timebegin_time[2]) +
-                        datetime.timedelta(minutes=int(time_min_delta[t])))
-        # read pressure, temperature, PBL and other met information
-        delta_p = _read_nc(fname_met, 'DELP').astype('float32')/100.0
-        delta_p = np.flip(delta_p, axis=1)  # from bottom to top
-        pressure_mid = _read_nc(fname_met, 'PL').astype('float32')/100.0
-        pressure_mid = np.flip(pressure_mid, axis=1)  # from bottom to top
-        temperature_mid = _read_nc(fname_met, 'T').astype('float32')
-        temperature_mid = np.flip(
-            temperature_mid, axis=1)  # from bottom to top
-        height_mid = _read_nc(fname_met, 'H')/1000.0
-        height_mid = np.flip(height_mid, axis=1)  # from bottom to top
-        PBL = _read_nc(fname_pbl, 'PBLTOP')/100.0
-        PBL = PBL[2::3, :, :]  # 1-hourly to 3-hourly
-        tropp = _read_nc(fname_pbl, 'TROPPB')/100.0
-        # read ozone
-        O3 = np.flip(_read_nc(
-            fname_gas, 'O3'), axis=1)
-        # integrate ozone (dobson unit)
-        O3 = O3*delta_p/g/Mair*N_A*1e-4*100.0/2.69e16
-        O3 = np.sum(O3, axis=1).squeeze()
-        # read hcho profiles
-        HCHO = np.flip(_read_nc(
-            fname_gas, 'CH2O'), axis=1)
-        # making a mask for the PBL region (it's 4D)
-        mask_PBL = np.zeros_like(pressure_mid)
-        for a in range(0, np.shape(mask_PBL)[0]):
-            for b in range(0, np.shape(mask_PBL)[1]):
-                mask_PBL[a, b, :, :] = pressure_mid[a, b, :,
-                                                    :].squeeze() >= PBL[a, :, :].squeeze()
-        mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
-        mask_PBL[mask_PBL != 1.0] = np.nan
-        # calculate the conversion of total HCHO to surface mixing ratio in ppbv
-        HCHO = np.nanmean(1e9*HCHO*mask_PBL, axis=1).squeeze() / \
-            np.sum(HCHO*delta_p/g/Mair*N_A*1e-4*100.0*1e-15, axis=1).squeeze()
-        # calculate no2 profiles
-        NO2 = np.flip(_read_nc(
-            fname_gas, 'NO2'), axis=1)
-        # making a mask for the troposphere
-        mask_trop = np.zeros_like(pressure_mid)
-        for a in range(0, np.shape(mask_trop)[0]):
-            for b in range(0, np.shape(mask_trop)[1]):
-                mask_trop[a, b, :, :] = pressure_mid[a, b, :,
-                                                     :].squeeze() >= tropp[a, :, :].squeeze()
-        mask_trop = np.multiply(mask_trop, 1.0).squeeze()
-        mask_trop[mask_trop != 1.0] = np.nan
-        # calculate the conversion of trop NO2 to surface mixing ratio in ppbv
-        NO2 = np.nanmean(1e9*NO2*mask_PBL, axis=1).squeeze()/np.nansum(NO2 *
-                                                                       mask_trop*delta_p/g/Mair*N_A*1e-4*100.0*1e-15, axis=1).squeeze()
-        #subset the vertical grids to reduce memory usage
-        pressure_mid = pressure_mid[:,0:24,:,:]
-        temperature_mid = temperature_mid[:,0:24,:,:]
-        height_mid = height_mid[:,0:24,:,:]
-        # shape up the ctm class
-        gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),
-                             pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)
-        return gmi_data
-
     # read meteorological and chemical fields
     tavg3_3d_met_files = sorted(
         glob.glob(product_dir + "/*tavg3_3d_met_Nv." + str(YYYYMM) + "*.nc4"))
@@ -704,8 +704,12 @@ class readers(object):
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
              num_job [int]: the number of jobs for parallel computation
         '''
+        YYYYMM2 = list(YYYYMM)
+        if float(YYYYMM[0:4])>2020:
+           YYYYMM2[0:4]="2019"
+        YYYYMM2 = ''.join(YYYYMM2)
         self.ctm_data = GMI_reader(
-            self.ctm_product_dir.as_posix(), YYYYMM, num_job=num_job)
+            self.ctm_product_dir.as_posix(), str(YYYYMM2), num_job=num_job)
 
 
 # testing
