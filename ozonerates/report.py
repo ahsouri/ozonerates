@@ -51,9 +51,9 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
     elif unit == 5:
         cbar.set_label(r'$[ppbv] $', fontsize=18)
     elif unit == 6:
-        cbar.set_label(r'$[\times 10^{3}s^{-1}] $', fontsize=18)
+        cbar.set_label(r'$[\times 10^{-3}s^{-1}] $', fontsize=18)
     elif unit == 7:
-        cbar.set_label(r'$[\times 10^{6}s^{-1}] $', fontsize=18)
+        cbar.set_label(r'$[\times 10^{-6}s^{-1}] $', fontsize=18)
     plt.title(title, loc='left', fontweight='bold', fontsize=20)
     plt.tight_layout()
     fig.savefig(fname, format='png', dpi=300)
@@ -125,13 +125,13 @@ def report(data,fname:str,folder:str):
             fname + '.png', 'VCD NO2', 1, 0, 5)
     plotter(data.longitude, data.latitude,  np.nanmean(data.vcd_hcho,axis=0).squeeze(), 'temp/D_vcd_form_' +
             fname + '.png', 'VCD FORM', 1, 0, 25)
-    plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr,axis=0).squeeze(), 'temp/E_vcd_form_vmr_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr,axis=0).squeeze(), 'temp/F_vcd_form_vmr_' +
             fname + '.png', 'HCHO vmr (PBL)', 5, 0, 5)
     plotter(data.longitude, data.latitude,np.nanmean(data.no2_vmr,axis=0).squeeze(), 'temp/C_vcd_no2_vmr_' +
             fname + '.png', 'NO2 vmr (PBL)', 5, 0, 2)
     plotter(data.longitude, data.latitude, np.nanmean(data.vcd_no2_factor,axis=0).squeeze(), 'temp/B_vcd_no2_factor_' +
             fname + '.png', 'NO2 factor (PBL)', 4, 0, 0.3)
-    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_hcho_factor,axis=0).squeeze(), 'temp/F_vcd_hcho_factor_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_hcho_factor,axis=0).squeeze(), 'temp/E_vcd_hcho_factor_' +
             fname + '.png', 'FORM factor (PBL)', 4, 0, 0.3)
     plotter(data.longitude, data.latitude, np.nanmean(data.FNR,axis=0).squeeze(), 'temp/G_fnr_' +
             fname + '.png', 'FNR (PBL)', 2, 0, 10)
