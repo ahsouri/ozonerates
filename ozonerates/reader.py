@@ -312,7 +312,7 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
     surface_alt = _read_group_nc(fname, [
                         'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
     surface_albedo = _read_group_nc(fname, [
-                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo').astype('float32')
+                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo_nitrogendioxide_window').astype('float32')
     SZA = _read_group_nc(fname, [
                         'PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
     p_mid = np.zeros(

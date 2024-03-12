@@ -137,30 +137,36 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
                      method="linear", bounds_error=False, fill_value=np.nan)
         J1 = np.reshape(J1, (np.shape(FNR)[0], np.shape(FNR)[1]))
         # load the lasso coeffs
-        lasso_result = sio.loadmat('../data/lasso_piecewise_3group.mat')
+        lasso_result = sio.loadmat('../data/lasso_piecewise_4group.mat')
         COEFF = lasso_result["COEFF"]
         COEFF0 = lasso_result["COEFF0"]
         COEFF1 = np.array(COEFF[0, 0])
         COEFF2 = np.array(COEFF[0, 1])
         COEFF3 = np.array(COEFF[0, 2])
+        COEFF4 = np.array(COEFF[0, 3])
         COEFF01 = np.array(COEFF0[0, 0])
         COEFF02 = np.array(COEFF0[0, 1])
         COEFF03 = np.array(COEFF0[0, 2])
+        COEFF04 = np.array(COEFF0[0, 3])
         # estimate PO3
-        threshold1 = 2
-        threshold2 = 4
+        threshold1 = 1.5
+        threshold2 = 2.5
+        threshold3 = 3.5
         PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         for i in range(0, np.shape(FNR)[0]):
             for j in range(0, np.shape(FNR)[1]):
                 if FNR[i, j] < threshold1:
                     coeff = COEFF1
                     coeff0 = COEFF01
-                elif FNR[i, j] > threshold2:
+                elif FNR[i, j] > threshold3:
                     coeff = COEFF2
                     coeff0 = COEFF02
-                elif ((FNR[i, j] >= threshold1) and (FNR[i, j] <= threshold2)):
+                elif ((FNR[i, j] >= threshold1) and (FNR[i, j] < threshold2)):
                     coeff = COEFF3
                     coeff0 = COEFF03
+                elif ((FNR[i, j] >= threshold2) and (FNR[i, j] <= threshold3)):
+                    coeff = COEFF4
+                    coeff0 = COEFF04
                 else:
                     continue
 
