@@ -200,6 +200,8 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
         amf_total
     vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
     scd = (scd*6.02214*1e19*1e-15).astype('float16')
+    # bias correction
+    vcd = (vcd-0.9)/0.59
     # read quality flag
     quality_flag = _read_group_nc(
         fname, ['PRODUCT'], 'qa_value').astype('float16')
@@ -298,6 +300,8 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
     vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
     scd = (scd*6.02214*1e19*1e-15).astype('float16')
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
+    # bias correction
+    vcd = (vcd-0.32)/0.66
     # read quality flag
     quality_flag = _read_group_nc(
         fname, ['PRODUCT'], 'qa_value').astype('float16')
