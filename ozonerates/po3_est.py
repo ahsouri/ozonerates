@@ -39,19 +39,21 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
 
     PO3_estimates = []
     inputs = {}
-    inputs["FNR"]=[]
-    inputs["J1"]=[]
-    inputs["J4"]=[]
-    inputs["HCHO_ppbv"]=[]
-    inputs["NO2_ppbv"]=[]
-    inputs["PO3_J4"]=[]
-    inputs["PO3_J1"]=[]
-    inputs["PO3_HCHO"]=[]
-    inputs["PO3_NO2"]=[]
-    inputs["VCD_NO2"]=[]
-    inputs["VCD_FORM"]=[]
-    inputs["PBL_no2_factor"]=[]
-    inputs["PBL_form_factor"]=[]
+    inputs["FNR"] = []
+    inputs["J1"] = []
+    inputs["J4"] = []
+    inputs["HCHO_ppbv"] = []
+    inputs["NO2_ppbv"] = []
+    inputs["PO3_J4"] = []
+    inputs["PO3_J1"] = []
+    inputs["PO3_HCHO"] = []
+    inputs["PO3_NO2"] = []
+    inputs["VCD_NO2"] = []
+    inputs["VCD_FORM"] = []
+    inputs["PBL_no2_factor"] = []
+    inputs["PBL_form_factor"] = []
+    inputs["PO3_err"] = []
+
     for single_date in _daterange(start_date, end_date):
 
         no2_files = sorted((glob.glob(no2_path + "/*_NO2_" + str(single_date.year) + f"{single_date.month:02}"
@@ -70,6 +72,8 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         O3col = []
         SZA = []
         surface_alt = []
+        VCD_NO2_err = []
+        VCD_HCHO_err = []
         # reading NO2 files daily
         for f in no2_files:
             print(f)
@@ -84,11 +88,12 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
             surface_alt.append(_read_nc(f, 'surface_alt'))
             latitude = _read_nc(f, 'latitude')
             longitude = _read_nc(f, 'longitude')
-
+            VCD_NO2_err.append(_read_nc(f, 'VCD_err'))
         # reading FORM files daily
         for f in hcho_files:
             VCD_FORM.append(_read_nc(f, 'VCD'))
             PBL_form_factor.append(_read_nc(f, 'gas_pbl_factor_hcho'))
+            VCD_HCHO_err.append(_read_nc(f, 'VCD_err'))
 
         # averaging to make daily coverage from L3 swaths
         PBLH = np.nanmean(np.array(PBLH), axis=0)
@@ -102,7 +107,8 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         O3col = np.nanmean(np.array(O3col), axis=0)
         SZA = np.nanmean(np.array(SZA), axis=0)
         surface_alt = np.nanmean(np.array(surface_alt), axis=0)
-        surface_alt[surface_alt<=0] = 0.0 #oceanic areas sometimes are negative
+        # oceanic areas sometimes are negative
+        surface_alt[surface_alt <= 0] = 0.0
         # extract the features: potential temp, HCHO_ppbv, NO2_ppbv, jNO2, FNR
         mask_PBL = PL >= PBLH
         mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
@@ -110,6 +116,10 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         #potential_temp = np.nanmean(T*((1000/PL)**(0.286))*mask_PBL, axis=0)
         NO2_ppbv = VCD_NO2*PBL_no2_factor
         HCHO_ppbv = VCD_FORM*PBL_form_factor
+        NO2_ppbv_err = np.sqrt((VCD_NO2_err*PBL_no2_factor)**2 +
+                               (0.01*VCD_NO2*PBL_no2_factor)**2 + (0.32*PBL_no2_factor)**2)
+        HCHO_ppbv_err = np.sqrt((VCD_HCHO_err*PBL_form_factor)**2 +
+                                (0.01*VCD_FORM*PBL_form_factor)**2 + (0.90*PBL_form_factor)**2)
         FNR = (HCHO_ppbv/NO2_ppbv)
 
         # extrating J values from a LUT
@@ -152,34 +162,51 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         threshold1 = 1.5
         threshold2 = 2.5
         threshold3 = 3.5
-        PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
+        PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1]))*np.nan
+        PO3_err = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1]))*np.nan
+        # apply a monte-carlo way to approximate errors in PO3 estimates
+        n_member = 1000
         for i in range(0, np.shape(FNR)[0]):
             for j in range(0, np.shape(FNR)[1]):
-                if FNR[i, j] < threshold1:
-                    coeff = COEFF1
-                    coeff0 = COEFF01
-                elif FNR[i, j] > threshold3:
-                    coeff = COEFF2
-                    coeff0 = COEFF02
-                elif ((FNR[i, j] >= threshold1) and (FNR[i, j] < threshold2)):
-                    coeff = COEFF3
-                    coeff0 = COEFF03
-                elif ((FNR[i, j] >= threshold2) and (FNR[i, j] <= threshold3)):
-                    coeff = COEFF4
-                    coeff0 = COEFF04
-                else:
-                    continue
+                s_no2 = np.random.normal(0, NO2_ppbv_err[i, j]*1.96, n_member)
+                s_hcho = np.random.normal(
+                    0, HCHO_ppbv_err[i, j]*1.96, n_member)
+                NO2_dist = NO2_ppbv[i, j] + s_no2
+                HCHO_dist = HCHO_ppbv[i, j] + s_hcho
+                FNR_dist = HCHO_dist/NO2_dist
+                PO3_dist = np.zeros((n_member, 5))*np.nan
+                PO3_dist_sum = np.zeros((n_member))*np.nan
+                # monte carlo
+                for k in range(0, n_member):
+                    if FNR_dist[k] < threshold1:
+                        coeff = COEFF1
+                        coeff0 = COEFF01
+                    elif FNR_dist[k] > threshold3:
+                        coeff = COEFF2
+                        coeff0 = COEFF02
+                    elif ((FNR_dist[k] >= threshold1) and (FNR_dist[k] < threshold2)):
+                        coeff = COEFF3
+                        coeff0 = COEFF03
+                    elif ((FNR_dist[k] >= threshold2) and (FNR_dist[k] <= threshold3)):
+                        coeff = COEFF4
+                        coeff0 = COEFF04
+                    else:
+                        continue
 
-                #PO3[i, j] = PO3[i, j]+(FNR[i, j])*coeff[0]
-                #PO3[i, j] = PO3[i, j]+potential_temp[i, j]*coeff[1]
-                PO3[i, j, 0] = J4[i, j]*coeff[0]*1e3
-                PO3[i, j, 1] = J1[i, j]*coeff[1]*1e6
-                PO3[i, j, 2] = HCHO_ppbv[i, j]*coeff[2]
-                PO3[i, j, 3] = NO2_ppbv[i, j]*coeff[3]
-                PO3[i, j, 4] = coeff0
+                    #PO3[i, j] = PO3[i, j]+(FNR[i, j])*coeff[0]
+                    #PO3[i, j] = PO3[i, j]+potential_temp[i, j]*coeff[1]
+                    PO3_dist[k, 0] = J4[i, j]*coeff[0]*1e3
+                    PO3_dist[k, 1] = J1[i, j]*coeff[1]*1e6
+                    PO3_dist[k, 2] = HCHO_dist[k]*coeff[2]
+                    PO3_dist[k, 3] = NO2_dist[k]*coeff[3]
+                    PO3_dist[k, 4] = coeff0
+                    PO3_dist_sum[k] = np.sum(PO3, axis=1)
+
+                PO3[i, j] = np.mean(PO3_dist_sum)
+                PO3_err[i, j] = np.std(PO3_dist_sum)
 
         # append inputs and PO3_estimates daily
-        PO3_estimates.append(np.sum(PO3, axis=2))
+        PO3_estimates.append(PO3)
         inputs["FNR"].append(FNR)
         inputs["J1"].append(J1*1e6)
         inputs["J4"].append(J4*1e3)
@@ -193,6 +220,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         inputs["VCD_FORM"].append(VCD_FORM)
         inputs["PBL_no2_factor"].append(PBL_no2_factor)
         inputs["PBL_form_factor"].append(PBL_form_factor)
+        inputs["PO3_err"].append(PO3_err)
 
     FNR = np.array(inputs["FNR"])
     J1 = np.array(inputs["J1"])
@@ -208,7 +236,8 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
     PBL_no2_factor = np.array(inputs["PBL_no2_factor"])
     PBL_form_factor = np.array(inputs["PBL_form_factor"])
     PO3_estimates = np.array(PO3_estimates)
+    PO3_err = np.array(PO3_err)
 
     output = param_output(latitude, longitude, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
-                          FNR, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib)
+                          FNR, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, PO3_err)
     return output

@@ -77,4 +77,5 @@ class param_output:
     no2_vmr_contrib: np.ndarray
     jno2_contrib: np.ndarray
     jo1d_contrib: np.ndarray
+    po3_err: np.ndarray
       

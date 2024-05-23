@@ -285,4 +285,8 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
         'jo1d_contrib', dtype('float32').char, ('t', 'x', 'y'))
     data17[:, :, :] = data.jo1d_contrib
 
+    data18 = ncfile.createVariable(
+        'PO3_err', dtype('float32').char, ('t', 'x', 'y'))
+    data18[:, :, :] = data.po3_err
+
     ncfile.close()
