@@ -7,6 +7,7 @@ from scipy.interpolate import interpn
 import datetime
 from scipy.io import savemat
 from ozonerates.config import param_output
+from joblib import Parallel, delayed
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -25,7 +26,48 @@ def _read_nc(filename, var):
     return np.squeeze(out)
 
 
-def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
+def loop_estimator(FNR_m, J4_m, J1_m, HCHO_m, NO2_m, COEFF, COEFF0):
+    # monte carlo
+    COEFF1 = np.array(COEFF[0, 0])
+    COEFF2 = np.array(COEFF[0, 1])
+    COEFF3 = np.array(COEFF[0, 2])
+    COEFF4 = np.array(COEFF[0, 3])
+    COEFF01 = np.array(COEFF0[0, 0])
+    COEFF02 = np.array(COEFF0[0, 1])
+    COEFF03 = np.array(COEFF0[0, 2])
+    COEFF04 = np.array(COEFF0[0, 3])
+
+    PO3_m = np.zeros((5))*np.nan
+    # estimate PO3
+    threshold1 = 1.5
+    threshold2 = 2.5
+    threshold3 = 3.5
+    if FNR_m < threshold1:
+        coeff = COEFF1
+        coeff0 = COEFF01
+    elif FNR_m > threshold3:
+        coeff = COEFF2
+        coeff0 = COEFF02
+    elif ((FNR_m >= threshold1) and (FNR_m < threshold2)):
+        coeff = COEFF3
+        coeff0 = COEFF03
+    elif ((FNR_m >= threshold2) and (FNR_m <= threshold3)):
+        coeff = COEFF4
+        coeff0 = COEFF04
+    else:
+        coeff = np.zeros((4))*np.nan
+        coeff0 = np.nan
+
+    PO3_m[0] = J4_m*coeff[0]*1e3
+    PO3_m[1] = J1_m*coeff[1]*1e6
+    PO3_m[2] = HCHO_m*coeff[2]
+    PO3_m[3] = NO2_m*coeff[3]
+    PO3_m[4] = coeff0
+
+    return PO3_m
+
+
+def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
     '''
        Forward estimation of PO3 based on information from MERRA2GMI and OMI/TROPOMI
        The output will be on daily basis
@@ -152,19 +194,8 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         lasso_result = sio.loadmat('../data/lasso_piecewise_4group.mat')
         COEFF = lasso_result["COEFF"]
         COEFF0 = lasso_result["COEFF0"]
-        COEFF1 = np.array(COEFF[0, 0])
-        COEFF2 = np.array(COEFF[0, 1])
-        COEFF3 = np.array(COEFF[0, 2])
-        COEFF4 = np.array(COEFF[0, 3])
-        COEFF01 = np.array(COEFF0[0, 0])
-        COEFF02 = np.array(COEFF0[0, 1])
-        COEFF03 = np.array(COEFF0[0, 2])
-        COEFF04 = np.array(COEFF0[0, 3])
-        # estimate PO3
-        threshold1 = 1.5
-        threshold2 = 2.5
-        threshold3 = 3.5
-        PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1],5))*np.nan
+
+        PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         PO3_err = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         # apply a monte-carlo way to approximate errors in PO3 estimates
         n_member = 500
@@ -176,38 +207,15 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
                 NO2_dist = NO2_ppbv[i, j] + s_no2
                 HCHO_dist = HCHO_ppbv[i, j] + s_hcho
                 FNR_dist = HCHO_dist/NO2_dist
-                PO3_dist = np.zeros((n_member, 5))*np.nan
-                PO3_dist_sum = np.zeros((n_member))*np.nan
-                # monte carlo
-                for k in range(0, n_member):
-                    if FNR_dist[k] < threshold1:
-                        coeff = COEFF1
-                        coeff0 = COEFF01
-                    elif FNR_dist[k] > threshold3:
-                        coeff = COEFF2
-                        coeff0 = COEFF02
-                    elif ((FNR_dist[k] >= threshold1) and (FNR_dist[k] < threshold2)):
-                        coeff = COEFF3
-                        coeff0 = COEFF03
-                    elif ((FNR_dist[k] >= threshold2) and (FNR_dist[k] <= threshold3)):
-                        coeff = COEFF4
-                        coeff0 = COEFF04
-                    else:
-                        continue
-
-                    #PO3[i, j] = PO3[i, j]+(FNR[i, j])*coeff[0]
-                    #PO3[i, j] = PO3[i, j]+potential_temp[i, j]*coeff[1]
-                    PO3_dist[k, 0] = J4[i, j]*coeff[0]*1e3
-                    PO3_dist[k, 1] = J1[i, j]*coeff[1]*1e6
-                    PO3_dist[k, 2] = HCHO_dist[k]*coeff[2]
-                    PO3_dist[k, 3] = NO2_dist[k]*coeff[3]
-                    PO3_dist[k, 4] = coeff0
-
+                po3_dist = Parallel(n_jobs=num_job)(delayed(loop_estimator)(
+                    FNR_dist[k], J4[i, j], J1[i, j], HCHO_dist[k], NO2_dist[k], COEFF, COEFF0) for k in range(0, n_member))
+                PO3_dist = np.array(po3_dist)
+                # integrating with PO3
                 PO3[i, j, :] = np.mean(PO3_dist, axis=0)
-                PO3_err[i, j, :] = np.std(PO3_dist_sum, axis=0)
+                PO3_err[i, j, :] = np.std(PO3_dist, axis=0)
 
         # append inputs and PO3_estimates daily
-        PO3_estimates.append(np.sum(PO3,axis=2))
+        PO3_estimates.append(np.sum(PO3, axis=2))
         inputs["FNR"].append(FNR)
         inputs["J1"].append(J1*1e6)
         inputs["J4"].append(J4*1e3)
