@@ -107,6 +107,8 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         O3col = np.nanmean(np.array(O3col), axis=0)
         SZA = np.nanmean(np.array(SZA), axis=0)
         surface_alt = np.nanmean(np.array(surface_alt), axis=0)
+        VCD_HCHO_err = np.nanmean(np.array(VCD_HCHO_err), axis=0)
+        VCD_NO2_err = np.nanmean(np.array(VCD_NO2_err), axis=0)
         # oceanic areas sometimes are negative
         surface_alt[surface_alt <= 0] = 0.0
         # extract the features: potential temp, HCHO_ppbv, NO2_ppbv, jNO2, FNR
@@ -162,10 +164,10 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         threshold1 = 1.5
         threshold2 = 2.5
         threshold3 = 3.5
-        PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1]))*np.nan
-        PO3_err = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1]))*np.nan
+        PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1],5))*np.nan
+        PO3_err = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         # apply a monte-carlo way to approximate errors in PO3 estimates
-        n_member = 1000
+        n_member = 500
         for i in range(0, np.shape(FNR)[0]):
             for j in range(0, np.shape(FNR)[1]):
                 s_no2 = np.random.normal(0, NO2_ppbv_err[i, j]*1.96, n_member)
@@ -200,13 +202,12 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
                     PO3_dist[k, 2] = HCHO_dist[k]*coeff[2]
                     PO3_dist[k, 3] = NO2_dist[k]*coeff[3]
                     PO3_dist[k, 4] = coeff0
-                    PO3_dist_sum[k] = np.sum(PO3, axis=1)
 
-                PO3[i, j] = np.mean(PO3_dist_sum)
-                PO3_err[i, j] = np.std(PO3_dist_sum)
+                PO3[i, j, :] = np.mean(PO3_dist, axis=0)
+                PO3_err[i, j, :] = np.std(PO3_dist_sum, axis=0)
 
         # append inputs and PO3_estimates daily
-        PO3_estimates.append(PO3)
+        PO3_estimates.append(np.sum(PO3,axis=2))
         inputs["FNR"].append(FNR)
         inputs["J1"].append(J1*1e6)
         inputs["J4"].append(J4*1e3)
@@ -220,7 +221,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
         inputs["VCD_FORM"].append(VCD_FORM)
         inputs["PBL_no2_factor"].append(PBL_no2_factor)
         inputs["PBL_form_factor"].append(PBL_form_factor)
-        inputs["PO3_err"].append(PO3_err)
+        inputs["PO3_err"].append(np.sqrt(np.sum(PO3_err**2, axis=2)))
 
     FNR = np.array(inputs["FNR"])
     J1 = np.array(inputs["J1"])
@@ -236,7 +237,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate):
     PBL_no2_factor = np.array(inputs["PBL_no2_factor"])
     PBL_form_factor = np.array(inputs["PBL_form_factor"])
     PO3_estimates = np.array(PO3_estimates)
-    PO3_err = np.array(PO3_err)
+    PO3_err = np.array(inputs["PO3_err"])
 
     output = param_output(latitude, longitude, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
                           FNR, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, PO3_err)
