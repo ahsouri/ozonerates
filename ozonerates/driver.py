@@ -51,11 +51,11 @@ class ozonerates(object):
             write_to_nc(fhcho, "PO3inputs_FORM_" +
                         str(time_hcho), output_folder)
 
-    def po3estimate_empirical(self, no2_path, hcho_path, startdate, enddate):
+    def po3estimate_empirical(self, no2_path, hcho_path, startdate, enddate, num_job = 1):
         '''
            Forward estimation of PO3 using LASSO regression output (lasso_piecewise_3group.mat)
         '''
-        self.PO3_output_empirical = PO3est_empirical(no2_path, hcho_path, startdate, enddate)
+        self.PO3_output_empirical = PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job = num_job)
 
     def reporting(self, fname: str, folder='report'):
         '''
