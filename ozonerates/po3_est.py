@@ -33,23 +33,23 @@ def loop_estimator(J4_m, J1_m, HCHO_m, NO2_m, HCHO_err_m, NO2_err_m, COEFFs, COE
     NO2_dist = NO2_m + s_no2
     HCHO_dist = HCHO_m + s_hcho
     FNR_dist = HCHO_dist/NO2_dist
-    PO3_m = np.zeros((5, n_member))
+    PO3_m = np.zeros((5, n_member))*np.nan
     for k in range(0, n_member):
         # estimate PO3
         threshold1 = 1.5
         threshold2 = 2.5
         threshold3 = 3.5
         if FNR_dist[k] < threshold1:
-            coeff = COEFFs[0, :].squeeze()
+            coeff = COEFFs[0, :]
             coeff0 = COEFF0s[0]
         elif FNR_dist[k] > threshold3:
-            coeff = COEFFs[1, :].squeeze()
+            coeff = COEFFs[1, :]
             coeff0 = COEFF0s[1]
         elif ((FNR_dist[k] >= threshold1) and (FNR_dist[k] < threshold2)):
-            coeff = COEFFs[2, :].squeeze()
+            coeff = COEFFs[2, :]
             coeff0 = COEFF0s[2]
         elif ((FNR_dist[k] >= threshold2) and (FNR_dist[k] <= threshold3)):
-            coeff = COEFFs[3, :].squeeze()
+            coeff = COEFFs[3, :]
             coeff0 = COEFF0s[3]
         else:
             coeff = np.zeros((4))*np.nan
@@ -61,7 +61,7 @@ def loop_estimator(J4_m, J1_m, HCHO_m, NO2_m, HCHO_err_m, NO2_err_m, COEFFs, COE
         PO3_m[3, k] = NO2_dist[k]*coeff[3]
         PO3_m[4, k] = coeff0
 
-    return np.mean(PO3_m, axis=1).squeeze(), np.std(PO3_m, axis=1).squeeze()
+    return np.mean(PO3_m, axis=1), np.std(PO3_m, axis=1)
 
 
 def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
@@ -201,22 +201,21 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         COEFF0s[1] = np.array(COEFF0[0, 1]).squeeze()
         COEFF0s[2] = np.array(COEFF0[0, 2]).squeeze()
         COEFF0s[3] = np.array(COEFF0[0, 3]).squeeze()
+
         PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         PO3_err = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         # apply a monte-carlo way to approximate errors in PO3 estimates
-        n_member = 10000
+        n_member = 5000
         t = time.time()
-        po3_dist, po3_err_dist = Parallel(n_jobs=num_job)(delayed(loop_estimator)(
-            J4[i, j], J1[i, j], HCHO_ppbv[i, j], NO2_ppbv[i, j], NO2_ppbv_err[i, j], HCHO_ppbv_err[i, j], COEFF, COEFF0, n_member) for i in range(0, np.shape(FNR)[0]) for j in range(0, np.shape(FNR)[1]))
+        output = Parallel(n_jobs=num_job)(delayed(loop_estimator)(
+            J4[i, j], J1[i, j], HCHO_ppbv[i, j], NO2_ppbv[i, j], HCHO_ppbv_err[i, j], NO2_ppbv_err[i, j], COEFFs, COEFF0s, n_member) for i in range(0, np.shape(FNR)[0]) for j in range(0, np.shape(FNR)[1]))
+        output = np.array(output)
+        po3_dist = output[:,0,:].squeeze()
+        po3_err_dist = output[:,1,:].squeeze()
         # integrating with PO3
         elapsed = time.time()-t
-        print(elapsed)
-        print(np.shape(po3_dist))
-        print(np.shape(po3_err_dist))
-        exit()
-        PO3[i, j, :] = np.mean(PO3_m, axis=1)
-        PO3_err[i, j, :] = np.std(PO3_m, axis=1)
-        exit()
+        PO3[:, :, :] = po3_dist.reshape((np.shape(FNR)[0], np.shape(FNR)[1], 5))
+        PO3_err[:, :, :] = po3_err_dist.reshape((np.shape(FNR)[0], np.shape(FNR)[1], 5))
         # append inputs and PO3_estimates daily
         PO3_estimates.append(np.sum(PO3, axis=2))
         inputs["FNR"].append(FNR)
