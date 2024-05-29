@@ -1,12 +1,10 @@
 import scipy.io as sio
-import time
 import numpy as np
 import glob
 import warnings
 from netCDF4 import Dataset
 from scipy.interpolate import interpn
 import datetime
-from scipy.io import savemat
 from ozonerates.config import param_output
 from joblib import Parallel, delayed
 
@@ -205,15 +203,13 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         PO3_err = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         # apply a monte-carlo way to approximate errors in PO3 estimates
-        n_member = 5000
-        t = time.time()
+        n_member = 10000
         output = Parallel(n_jobs=num_job)(delayed(loop_estimator)(
             J4[i, j], J1[i, j], HCHO_ppbv[i, j], NO2_ppbv[i, j], HCHO_ppbv_err[i, j], NO2_ppbv_err[i, j], COEFFs, COEFF0s, n_member) for i in range(0, np.shape(FNR)[0]) for j in range(0, np.shape(FNR)[1]))
         output = np.array(output)
         po3_dist = output[:,0,:].squeeze()
         po3_err_dist = output[:,1,:].squeeze()
         # integrating with PO3
-        elapsed = time.time()-t
         PO3[:, :, :] = po3_dist.reshape((np.shape(FNR)[0], np.shape(FNR)[1], 5))
         PO3_err[:, :, :] = po3_err_dist.reshape((np.shape(FNR)[0], np.shape(FNR)[1], 5))
         # append inputs and PO3_estimates daily

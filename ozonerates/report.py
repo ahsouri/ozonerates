@@ -8,30 +8,32 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import numpy as np
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.basemap import Basemap
+
 
 def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
 
     fig = plt.figure(figsize=(16, 8))
     ax = plt.axes()
-    map = Basemap(projection='cyl',llcrnrlat=np.min(Y.flatten()),urcrnrlat= np.max(Y.flatten()),\
-            llcrnrlon=np.min(X.flatten()),urcrnrlon= np.max(X.flatten()),resolution="i")
+    map = Basemap(projection='cyl', llcrnrlat=np.min(Y.flatten()), urcrnrlat=np.max(Y.flatten()),
+                  llcrnrlon=np.min(X.flatten()), urcrnrlon=np.max(X.flatten()), resolution="i")
     im = ax.imshow(Z, origin='lower',
                    extent=[np.min(X.flatten()), np.max(X.flatten()),
-                   np.min(Y.flatten()), np.max(Y.flatten())],
+                           np.min(Y.flatten()), np.max(Y.flatten())],
                    interpolation='nearest', aspect='auto', vmin=vmin, vmax=vmax,
                    cmap=mpl.colormaps['rainbow'])
     map.drawcoastlines()
     map.drawcountries()
     x_ticks = np.arange(np.min(X.flatten()),
                         np.max(X.flatten()), 40)
-    x_labels = np.linspace(np.min(X.flatten()), np.max(X.flatten()), np.size(x_ticks))
+    x_labels = np.linspace(np.min(X.flatten()), np.max(
+        X.flatten()), np.size(x_ticks))
     ax.set_xticks(x_ticks)
     ax.set_xticklabels(x_labels, fontsize=18)
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     y_ticks = np.arange(np.min(Y.flatten()), np.max(Y.flatten()), 20)
-    y_labels = np.linspace(np.min(Y.flatten()), np.max(Y.flatten()), np.size(y_ticks))
+    y_labels = np.linspace(np.min(Y.flatten()), np.max(
+        Y.flatten()), np.size(y_ticks))
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(y_labels, fontsize=18)
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -115,38 +117,42 @@ def topdf(fname: str, folder: str, pdf_output: str):
     pdf.output(folder + '/' + pdf_output, 'F')
 
 
-def report(data,fname:str,folder:str):
+def report(data, fname: str, folder: str):
     '''
     '''
     if not os.path.exists('temp'):
         os.makedirs('temp')
 
-    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_no2,axis=0).squeeze(), 'temp/A_vcd_no2_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_no2, axis=0).squeeze(), 'temp/A_vcd_no2_' +
             fname + '.png', 'VCD NO2', 1, 0, 5)
-    plotter(data.longitude, data.latitude,  np.nanmean(data.vcd_hcho,axis=0).squeeze(), 'temp/D_vcd_form_' +
+    plotter(data.longitude, data.latitude,  np.nanmean(data.vcd_hcho, axis=0).squeeze(), 'temp/D_vcd_form_' +
             fname + '.png', 'VCD FORM', 1, 0, 25)
-    plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr,axis=0).squeeze(), 'temp/F_vcd_form_vmr_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr, axis=0).squeeze(), 'temp/F_vcd_form_vmr_' +
             fname + '.png', 'HCHO vmr (PBL)', 5, 0, 5)
-    plotter(data.longitude, data.latitude,np.nanmean(data.no2_vmr,axis=0).squeeze(), 'temp/C_vcd_no2_vmr_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.no2_vmr, axis=0).squeeze(), 'temp/C_vcd_no2_vmr_' +
             fname + '.png', 'NO2 vmr (PBL)', 5, 0, 2)
-    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_no2_factor,axis=0).squeeze(), 'temp/B_vcd_no2_factor_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_no2_factor, axis=0).squeeze(), 'temp/B_vcd_no2_factor_' +
             fname + '.png', 'NO2 factor (PBL)', 4, 0, 0.3)
-    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_hcho_factor,axis=0).squeeze(), 'temp/E_vcd_hcho_factor_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.vcd_hcho_factor, axis=0).squeeze(), 'temp/E_vcd_hcho_factor_' +
             fname + '.png', 'FORM factor (PBL)', 4, 0, 0.3)
-    plotter(data.longitude, data.latitude, np.nanmean(data.FNR,axis=0).squeeze(), 'temp/G_fnr_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.FNR, axis=0).squeeze(), 'temp/G_fnr_' +
             fname + '.png', 'FNR (PBL)', 2, 0, 10)
-    plotter(data.longitude, data.latitude, np.nanmean(data.jo1d,axis=0).squeeze(), 'temp/H_jo1d_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.jo1d, axis=0).squeeze(), 'temp/H_jo1d_' +
             fname + '.png', 'JO1D', 7, 0, 100)
-    plotter(data.longitude, data.latitude, np.nanmean(data.jno2,axis=0).squeeze(), 'temp/I_jno2_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.jno2, axis=0).squeeze(), 'temp/I_jno2_' +
             fname + '.png', 'JNO2', 6, 0, 20)
-    plotter(data.longitude, data.latitude, np.nanmean(data.jno2_contrib,axis=0).squeeze(), 'temp/K_jno2_contrib_' +
-            fname + '.png', 'JNO2 contribution to PO3', 3, -1, 3)    
-    plotter(data.longitude, data.latitude, np.nanmean(data.jo1d_contrib,axis=0).squeeze(), 'temp/J_jo1d_contrib_' +
-            fname + '.png', 'JO1D contribution to PO3', 3, -1, 3)  
-    plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr_contrib,axis=0).squeeze(), 'temp/L_hcho_contrib_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.jno2_contrib, axis=0).squeeze(), 'temp/K_jno2_contrib_' +
+            fname + '.png', 'JNO2 contribution to PO3', 3, -1, 3)
+    plotter(data.longitude, data.latitude, np.nanmean(data.jo1d_contrib, axis=0).squeeze(), 'temp/J_jo1d_contrib_' +
+            fname + '.png', 'JO1D contribution to PO3', 3, -1, 3)
+    plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr_contrib, axis=0).squeeze(), 'temp/L_hcho_contrib_' +
             fname + '.png', 'FORM contribution to PO3', 3, -1, 3)
-    plotter(data.longitude, data.latitude, np.nanmean(data.no2_vmr_contrib,axis=0).squeeze(), 'temp/M_no2_contrib_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.no2_vmr_contrib, axis=0).squeeze(), 'temp/M_no2_contrib_' +
             fname + '.png', 'NO2 contribution to PO3', 3, -1, 3)
-    plotter(data.longitude, data.latitude, np.nanmean(data.PO3,axis=0).squeeze(), 'temp/N_po3_' +
+    plotter(data.longitude, data.latitude, np.nanmean(data.PO3, axis=0).squeeze(), 'temp/N_po3_' +
             fname + '.png', 'PO3', 3, -1, 8)
+    plotter(data.longitude, data.latitude, np.sqrt(np.nanmean(data.po3_err**2, axis=0)).squeeze(), 'temp/O_po3_err_' +
+            fname + '.png', 'PO3_err', 3, 0, 8)
+    plotter(data.longitude, data.latitude, 100.0*np.sqrt(np.nanmean(data.po3_err**2, axis=0)).squeeze()/np.nanmean(data.PO3, axis=0).squeeze(), 'temp/Q_po3_err_rel_' +
+            fname + '.png', 'PO3_err', 2, -100.0, 100.0)
     topdf(fname, folder, 'PO3_report_' + fname + '.pdf')
