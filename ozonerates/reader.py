@@ -249,7 +249,10 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
         tropomi_hcho = interpolator(
             1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
     # return
-    return tropomi_hcho
+    if tropomi_hcho != 0:
+        return tropomi_hcho
+    else:
+        return None
 
 
 def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=False) -> satellite_amf:
@@ -358,7 +361,10 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
         tropomi_no2 = interpolator(
             1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh=0.75)
     # return
-    return tropomi_no2
+    if tropomi_no2 != 0:
+        return tropomi_no2
+    else:
+        return None
 
 
 def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=False) -> satellite_amf:
@@ -471,7 +477,10 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
         omi_no2 = interpolator(
             1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)  # bilinear mass-conserved interpolation
     # return
-    return omi_no2
+    if omi_no2 != 0:
+        return omi_no2
+    else:
+        return None
 
 
 def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> satellite_amf:
@@ -561,7 +570,10 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
             omi_hcho = interpolator(
                 1, grid_size, omi_hcho, ctm_models_coordinate, flag_thresh=0.0)
         # return
-        return omi_hcho
+        if omi_hcho != 0:
+           return omi_hcho
+        else:
+           return None
     except:
         return None
 
