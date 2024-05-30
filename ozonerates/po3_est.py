@@ -28,9 +28,10 @@ def _read_nc(filename, var):
 def loop_estimator(J4_m, J1_m, HCHO_m, NO2_m, HCHO_err_m, NO2_err_m, COEFFs, COEFF0s, n_member):
     s_no2 = np.random.normal(0, NO2_err_m, n_member)
     s_hcho = np.random.normal(0, HCHO_err_m, n_member)
+    s_fnr = np.random.normal(0, (HCHO_m/NO2_m)*np.sqrt((HCHO_err_m/HCHO_m)**2+(NO2_err_m/NO2_m)**2), n_member)
     NO2_dist = NO2_m + s_no2
     HCHO_dist = HCHO_m + s_hcho
-    FNR_dist = HCHO_dist/NO2_dist
+    FNR_dist = HCHO_m/NO2_m + s_fnr
     PO3_m = np.zeros((5, n_member))*np.nan
     for k in range(0, n_member):
         # estimate PO3
