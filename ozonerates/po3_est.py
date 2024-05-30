@@ -144,8 +144,8 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         O3col = np.nanmean(np.array(O3col), axis=0)
         SZA = np.nanmean(np.array(SZA), axis=0)
         surface_alt = np.nanmean(np.array(surface_alt), axis=0)
-        VCD_HCHO_err = np.nanmean(np.array(VCD_HCHO_err), axis=0)
-        VCD_NO2_err = np.nanmean(np.array(VCD_NO2_err), axis=0)
+        VCD_HCHO_err = np.sqrt(np.nanmean((np.array(VCD_HCHO_err))**2, axis=0))
+        VCD_NO2_err = np.sqrt(np.nanmean((np.array(VCD_NO2_err))**2, axis=0))
         # oceanic areas sometimes are negative
         surface_alt[surface_alt <= 0] = 0.0
         # extract the features: potential temp, HCHO_ppbv, NO2_ppbv, jNO2, FNR
