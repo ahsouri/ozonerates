@@ -28,10 +28,14 @@ def _read_nc(filename, var):
 def loop_estimator(J4_m, J1_m, HCHO_m, NO2_m, HCHO_err_m, NO2_err_m, COEFFs, COEFF0s, n_member):
     s_no2 = np.random.normal(0, NO2_err_m, n_member)
     s_hcho = np.random.normal(0, HCHO_err_m, n_member)
-    s_fnr = np.random.normal(0, (HCHO_m/NO2_m)*np.sqrt((HCHO_err_m/HCHO_m)**2+(NO2_err_m/NO2_m)**2), n_member)
+    error_fnr = (HCHO_m/NO2_m)*np.sqrt((HCHO_err_m/HCHO_m)**2+(NO2_err_m/NO2_m)**2)
+    error_fnr = np.abs(error_fnr)
+    if np.isnan(error_fnr):
+       error_fnr = 0.0
+    s_fnr = np.random.normal(0, error_fnr, n_member)
     NO2_dist = NO2_m + s_no2
     HCHO_dist = HCHO_m + s_hcho
-    FNR_dist = HCHO_m/NO2_m + s_fnr
+    FNR_dist = np.abs(HCHO_m/NO2_m) + s_fnr
     PO3_m = np.zeros((5, n_member))*np.nan
     for k in range(0, n_member):
         # estimate PO3
@@ -160,7 +164,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
                                (0.01*VCD_NO2*PBL_no2_factor)**2 + (0.32*PBL_no2_factor)**2)
         HCHO_ppbv_err = np.sqrt((VCD_HCHO_err*PBL_form_factor)**2 +
                                 (0.01*VCD_FORM*PBL_form_factor)**2 + (0.90*PBL_form_factor)**2)
-        FNR = (HCHO_ppbv/NO2_ppbv)
+        FNR = np.abs(HCHO_ppbv/NO2_ppbv)
 
         # extrating J values from a LUT
         Jvalue = sio.loadmat('../data/HybridJtables.mat')
