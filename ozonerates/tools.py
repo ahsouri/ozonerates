@@ -64,6 +64,8 @@ def ctmpost(satdata, ctmdata):
         )
         ctm_PBLH = ctmdata[closest_index_day].PBLH[closest_index_hour, :, :].squeeze(
         )
+        ctm_H2O = ctmdata[closest_index_day].H2O[closest_index_hour, :, :].squeeze(
+        )
 
         ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
                                          np.shape(L2_granule.longitude_center)[0], np.shape(
@@ -76,6 +78,9 @@ def ctmpost(satdata, ctmdata):
             L2_granule.longitude_center)[1],
         ))*np.nan
         ctm_PBLH_new = np.zeros((np.shape(L2_granule.longitude_center)[0], np.shape(
+            L2_granule.longitude_center)[1],
+        ))*np.nan
+        ctm_H2O_new = np.zeros((np.shape(L2_granule.longitude_center)[0], np.shape(
             L2_granule.longitude_center)[1],
         ))*np.nan
         ctm_no2_profile_f_new = np.zeros_like(ctm_PBLH_new)*np.nan
@@ -102,13 +107,15 @@ def ctmpost(satdata, ctmdata):
                                             sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
         ctm_PBLH_new[:, :] = _interpolosis(tri, ctm_PBLH, sat_coordinate["Longitude"],
                                            sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+        ctm_H2O_new[:, :] = _interpolosis(tri, ctm_H2O, sat_coordinate["Longitude"],
+                                           sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
         ctm_no2_profile_f_new[:, :] = _interpolosis(tri, ctm_no2_profile_factor, sat_coordinate["Longitude"],
                                                     sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
         ctm_hcho_profile_f_new[:, :] = _interpolosis(tri, ctm_hcho_profile_factor, sat_coordinate["Longitude"],
                                                      sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
 
         param = param_input(L2_granule.longitude_center, L2_granule.latitude_center, L2_granule.time,
-                            ctm_no2_profile_f_new, ctm_hcho_profile_f_new, ctm_O3col_new, ctm_mid_pressure_new,
+                            ctm_no2_profile_f_new, ctm_hcho_profile_f_new, ctm_O3col_new, ctm_H2O_new, ctm_mid_pressure_new,
                             ctm_mid_T_new, ctm_height_new, ctm_PBLH_new, L2_granule.vcd, L2_granule.uncertainty,
                             L2_granule.tropopause, L2_granule.surface_albedo, L2_granule.SZA, L2_granule.surface_alt)
         params.append(param)

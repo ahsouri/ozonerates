@@ -146,7 +146,7 @@ def gmi_reader_wrapper(fname_met: str, fname_gas: str, fname_pbl: str) -> ctm_mo
      #calculate the PBL H2O number density
      h2o_num_dens = np.nanmean(h2o_num_dens*mask_PBL, axis=1)
      # shape up the ctm class
-     gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),
+     gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),h2o_num_dens.astype('float16'),
                                   pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)
      return gmi_data
 

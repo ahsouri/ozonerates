@@ -1,6 +1,7 @@
 from ozonerates.reader import readers
 from ozonerates.tools import  write_to_nc, ctmpost, write_to_nc_product
 from ozonerates.po3_est import PO3est_empirical
+from ozonerates.po3_dnn import PO3est_DNN
 from ozonerates.report import report
 from pathlib import Path
 
@@ -56,6 +57,13 @@ class ozonerates(object):
            Forward estimation of PO3 using LASSO regression output (lasso_piecewise_3group.mat)
         '''
         self.PO3_output_empirical = PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job = num_job)
+
+    def po3estimate_dnn(self, no2_path, hcho_path, startdate, enddate, num_job = 1):
+        '''
+           Forward estimation of PO3 using LASSO regression output (lasso_piecewise_3group.mat)
+        '''
+
+        self.PO3_output_dnn = PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job = num_job)
 
     def reporting(self, fname: str, folder='report'):
         '''
