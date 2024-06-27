@@ -90,6 +90,16 @@ def gmi_reader_wrapper(fname_met: str, fname_gas: str, fname_pbl: str) -> ctm_mo
      temperature_mid = _read_nc(fname_met, 'T').astype('float32')
      temperature_mid = np.flip(
          temperature_mid, axis=1)  # from bottom to top
+     h2o_mid = _read_nc(fname_met, 'QV').astype('float32')
+     h2o_mid = np.flip(h2o_mid, axis=1)  # from bottom to top
+     # convert the specifc humidity to molec/cm3
+     eta = 0.622 #ratio of weights of dry and moist air
+     R = 8.3145*1e6/100.0 #gas constant, cm^3 hPa /mol /K
+     Na = 6.022e23 #avogadro
+     M = pressure_mid*Na/(R*temperature_mid) #number density, molec/cm^3
+     e = (h2o_mid*pressure_mid)/(eta + (1 - eta)*h2o_mid)
+     h2o_num_dens = e/pressure_mid*M
+     h2o_num_dens = h2o_num_dens*1e-18
      height_mid = _read_nc(fname_met, 'H')/1000.0
      height_mid = np.flip(height_mid, axis=1)  # from bottom to top
      PBL = _read_nc(fname_pbl, 'PBLTOP')/100.0
@@ -133,6 +143,8 @@ def gmi_reader_wrapper(fname_met: str, fname_gas: str, fname_pbl: str) -> ctm_mo
      pressure_mid = pressure_mid[:,0:24,:,:]
      temperature_mid = temperature_mid[:,0:24,:,:]
      height_mid = height_mid[:,0:24,:,:]
+     #calculate the PBL H2O number density
+     h2o_num_dens = np.nanmean(h2o_num_dens*mask_PBL, axis=1)
      # shape up the ctm class
      gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),
                                   pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)

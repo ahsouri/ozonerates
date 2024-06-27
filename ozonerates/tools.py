@@ -198,6 +198,10 @@ def write_to_nc(data, output_file, output_folder='diag'):
         'surface_alt', dtype('float32').char, ('x', 'y'))
     data16[:, :] = data.surface_alt
 
+    data17 = ncfile.createVariable(
+        'H2O', dtype('float32').char, ('x', 'y'))
+    data17[:, :] = data.h2o
+
     ncfile.close()
 
 def write_to_nc_product(data, output_file, output_folder='diag'):
