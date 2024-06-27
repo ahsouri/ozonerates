@@ -69,13 +69,13 @@ class ozonerates(object):
         '''
            Making pdf reports
         '''
-        report(self.PO3_output_empirical, fname, folder)
+        report(self.PO3_output_dnn, fname, folder)
 
     def writenc(self, fname: str, folder='diag'):
         '''
            Making nc diags
         '''
-        write_to_nc_product(self.PO3_output_empirical,fname, folder)
+        write_to_nc_product(self.PO3_output_dnn,fname, folder)
 
 
 # testing
