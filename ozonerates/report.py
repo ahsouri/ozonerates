@@ -141,6 +141,8 @@ def report(data, fname: str, folder: str):
             fname + '.png', 'JO1D', 7, 0, 100)
     plotter(data.longitude, data.latitude, np.nanmean(data.jno2, axis=0).squeeze(), 'temp/I_jno2_' +
             fname + '.png', 'JNO2', 6, 0, 20)
+    plotter(data.longitude, data.latitude, np.nanmean(data.H2O, axis=0).squeeze(), 'temp/IA_H2O_' +
+            fname + '.png', 'H2O', 6, 0, 1)
     plotter(data.longitude, data.latitude, np.nanmean(data.jno2_contrib, axis=0).squeeze(), 'temp/K_jno2_contrib_' +
             fname + '.png', 'JNO2 contribution to PO3', 3, -1, 3)
     plotter(data.longitude, data.latitude, np.nanmean(data.jo1d_contrib, axis=0).squeeze(), 'temp/J_jo1d_contrib_' +
@@ -149,6 +151,8 @@ def report(data, fname: str, folder: str):
             fname + '.png', 'FORM contribution to PO3', 3, -1, 3)
     plotter(data.longitude, data.latitude, np.nanmean(data.no2_vmr_contrib, axis=0).squeeze(), 'temp/M_no2_contrib_' +
             fname + '.png', 'NO2 contribution to PO3', 3, -1, 3)
+    plotter(data.longitude, data.latitude, np.nanmean(data.h2o_contrib, axis=0).squeeze(), 'temp/MA_h2o_contrib_' +
+            fname + '.png', 'H2O contribution to PO3', 3, -1, 3)
     plotter(data.longitude, data.latitude, np.nanmean(data.PO3, axis=0).squeeze(), 'temp/N_po3_' +
             fname + '.png', 'PO3', 3, -1, 8)
     plotter(data.longitude, data.latitude, np.sqrt(np.nanmean(data.po3_err**2, axis=0)).squeeze(), 'temp/O_po3_err_' +

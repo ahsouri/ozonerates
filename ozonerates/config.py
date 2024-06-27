@@ -71,6 +71,7 @@ class param_output:
     vcd_hcho_factor: np.ndarray
     PO3: np.ndarray
     FNR: np.ndarray
+    H2O: np.ndarray
     hcho_vmr: np.ndarray
     no2_vmr: np.ndarray
     jno2: np.ndarray
