@@ -47,6 +47,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
     PO3_estimates = []
     inputs = {}
     inputs["H2O"] = []
+    inputs["FNR"] = []
     inputs["J1"] = []
     inputs["J4"] = []
     inputs["HCHO_ppbv"] = []
@@ -167,12 +168,48 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         HCHO_ppbv = HCHO_ppbv/normalization_factors[4]
         HCHO_ppbv_err = HCHO_ppbv_err/normalization_factors[4]
         inputs = np.zeros((np.size(J1),5))
-        inputs[:,0] = J4
-        inputs[:,1] = J1
-        inputs[:,2] = H2O
-        inputs[:,3] = NO2_ppbv
-        inputs[:,4] = HCHO_ppbv
+        inputs[:,0] = J4.flatten()
+        inputs[:,1] = J1.flatten()
+        inputs[:,2] = H2O.flatten()
+        inputs[:,3] = NO2_ppbv.flatten()
+        inputs[:,4] = HCHO_ppbv.flatten()
 
-        prediction = dnn_model.predict(inputs,verbose=1)
-        print(prediction)
-        exit()
+        prediction = np.array(dnn_model.predict(inputs,verbose=1))
+        PO3 = np.reshape(prediction, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        print(np.shape(PO3))
+        # append inputs and PO3_estimates daily
+        PO3_estimates.append(PO3)
+        inputs["FNR"].append(np.zeros_like(NO2_ppbv))
+        inputs["J1"].append(J1*1e6)
+        inputs["J4"].append(J4*1e3)
+        inputs["HCHO_ppbv"].append(HCHO_ppbv)
+        inputs["NO2_ppbv"].append(NO2_ppbv)
+        inputs["PO3_J4"].append(PO3*0.0)
+        inputs["PO3_J1"].append(PO3*0.0)
+        inputs["PO3_HCHO"].append(PO3*0.0)
+        inputs["PO3_NO2"].append(PO3*0.0)
+        inputs["VCD_NO2"].append(VCD_NO2)
+        inputs["VCD_FORM"].append(VCD_FORM)
+        inputs["PBL_no2_factor"].append(PBL_no2_factor)
+        inputs["PBL_form_factor"].append(PBL_form_factor)
+        inputs["PO3_err"].append(PO3*0.0)
+
+    FNR = np.array(inputs["FNR"])
+    J1 = np.array(inputs["J1"])
+    J4 = np.array(inputs["J4"])
+    HCHO_ppbv = np.array(inputs["HCHO_ppbv"])
+    NO2_ppbv = np.array(inputs["NO2_ppbv"])
+    J1_contrib = np.array(inputs["PO3_J1"])
+    J4_contrib = np.array(inputs["PO3_J4"])
+    NO2_contrib = np.array(inputs["PO3_NO2"])
+    HCHO_contrib = np.array(inputs["PO3_HCHO"])
+    VCD_NO2 = np.array(inputs["VCD_NO2"])
+    VCD_FORM = np.array(inputs["VCD_FORM"])
+    PBL_no2_factor = np.array(inputs["PBL_no2_factor"])
+    PBL_form_factor = np.array(inputs["PBL_form_factor"])
+    PO3_estimates = np.array(PO3_estimates)
+    PO3_err = np.array(inputs["PO3_err"])
+
+    output = param_output(latitude, longitude, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
+                          FNR, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, PO3_err)
+    return output
