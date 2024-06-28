@@ -300,4 +300,12 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
         'PO3_err', dtype('float32').char, ('t', 'x', 'y'))
     data18[:, :, :] = data.po3_err
 
+    data19 = ncfile.createVariable(
+        'H2O', dtype('float32').char, ('t', 'x', 'y'))
+    data19[:, :, :] = data.H2O
+
+    data20 = ncfile.createVariable(
+        'h2o_contrib', dtype('float32').char, ('t', 'x', 'y'))
+    data20[:, :, :] = data.h2o_contrib
+
     ncfile.close()

@@ -56,6 +56,8 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
         cbar.set_label(r'$[\times 10^{-3}s^{-1}] $', fontsize=18)
     elif unit == 7:
         cbar.set_label(r'$[\times 10^{-6}s^{-1}] $', fontsize=18)
+    elif unit == 8:
+        cbar.set_label(r'$[\times 10^{18}molec.cm^{-3}] $', fontsize=18)
     plt.title(title, loc='left', fontweight='bold', fontsize=20)
     plt.tight_layout()
     fig.savefig(fname, format='png', dpi=300)
@@ -142,7 +144,7 @@ def report(data, fname: str, folder: str):
     plotter(data.longitude, data.latitude, np.nanmean(data.jno2, axis=0).squeeze(), 'temp/I_jno2_' +
             fname + '.png', 'JNO2', 6, 0, 20)
     plotter(data.longitude, data.latitude, np.nanmean(data.H2O, axis=0).squeeze(), 'temp/IA_H2O_' +
-            fname + '.png', 'H2O', 6, 0, 1)
+            fname + '.png', 'H2O', 8, 0, 1)
     plotter(data.longitude, data.latitude, np.nanmean(data.jno2_contrib, axis=0).squeeze(), 'temp/K_jno2_contrib_' +
             fname + '.png', 'JNO2 contribution to PO3', 3, -1, 3)
     plotter(data.longitude, data.latitude, np.nanmean(data.jo1d_contrib, axis=0).squeeze(), 'temp/J_jo1d_contrib_' +
