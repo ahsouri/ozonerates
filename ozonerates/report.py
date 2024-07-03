@@ -159,6 +159,6 @@ def report(data, fname: str, folder: str):
             fname + '.png', 'PO3', 3, -1, 8)
     plotter(data.longitude, data.latitude, np.sqrt(np.nanmean(data.po3_err**2, axis=0)).squeeze(), 'temp/O_po3_err_' +
             fname + '.png', 'PO3_err', 3, 0, 8)
-    plotter(data.longitude, data.latitude, 100.0*np.sqrt(np.nanmean(data.po3_err**2, axis=0)).squeeze()/np.nanmean(data.PO3, axis=0).squeeze(), 'temp/Q_po3_err_rel_' +
-            fname + '.png', 'PO3_err', 2, -100.0, 100.0)
+    plotter(data.longitude, data.latitude, np.abs(100.0*np.sqrt(np.nanmean(data.po3_err**2, axis=0)).squeeze()/np.nanmean(data.PO3, axis=0).squeeze()), 'temp/Q_po3_err_rel_' +
+            fname + '.png', 'PO3_err', 2, 0, 100.0)
     topdf(fname, folder, 'PO3_report_' + fname + '.pdf')
