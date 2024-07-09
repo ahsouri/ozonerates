@@ -36,7 +36,7 @@ def predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv):
     inputs_dnn[:,3] = NO2_ppbv.flatten()/normalization_factors[3]
     inputs_dnn[:,4] = HCHO_ppbv.flatten()/normalization_factors[4]
 
-    return np.array(dnn_model.predict(inputs_dnn,verbose=0))
+    return np.array(dnn_model.predict(inputs_dnn,verbose=1))
 
 def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
     '''
@@ -191,14 +191,23 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         SHCHO[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
                  (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
         #SJs
-        prediction_up = predictor(dnn_model,J1*1.1,J4*1.1,H2O,NO2_ppbv,HCHO_ppbv)
-        prediction_down = predictor(dnn_model,J1*0.9,J4*0.9,H2O,NO2_ppbv,HCHO_ppbv)
+        prediction_up = predictor(dnn_model,J1*1.1,J4,H2O,NO2_ppbv,HCHO_ppbv)
+        prediction_down = predictor(dnn_model,J1*0.9,J4,H2O,NO2_ppbv,HCHO_ppbv)
 
-        SJs = (prediction_up - prediction_down)/0.2
-        SJs = np.reshape(SJs, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
-        SJs[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
+        SJ1 = (prediction_up - prediction_down)/0.2
+        SJ1 = np.reshape(SJ1, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        SJ1[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
                  (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
-        
+
+        prediction_up = predictor(dnn_model,J1,J4*1.1,H2O,NO2_ppbv,HCHO_ppbv)
+        prediction_down = predictor(dnn_model,J1,J4*0.9,H2O,NO2_ppbv,HCHO_ppbv)
+
+        SJ4 = (prediction_up - prediction_down)/0.2
+        SJ4 = np.reshape(SJ4, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        SJ4[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
+                 (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
+
+        SJs = SJ1 + SJ4
         #SH2O
         prediction_up = predictor(dnn_model,J1,J4,H2O*1.1,NO2_ppbv,HCHO_ppbv)
         prediction_down = predictor(dnn_model,J1,J4,H2O*0.9,NO2_ppbv,HCHO_ppbv)

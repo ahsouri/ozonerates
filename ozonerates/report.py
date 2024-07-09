@@ -146,19 +146,19 @@ def report(data, fname: str, folder: str):
     plotter(data.longitude, data.latitude, np.nanmean(data.H2O, axis=0).squeeze(), 'temp/IA_H2O_' +
             fname + '.png', 'H2O', 8, 0, 1)
     plotter(data.longitude, data.latitude, np.nanmean(data.jno2_contrib, axis=0).squeeze(), 'temp/K_jno2_contrib_' +
-            fname + '.png', 'JNO2 contribution to PO3', 3, -1, 3)
+            fname + '.png', 'JNO2 contribution to PO3', 3, -1, 5)
     plotter(data.longitude, data.latitude, np.nanmean(data.jo1d_contrib, axis=0).squeeze(), 'temp/J_jo1d_contrib_' +
-            fname + '.png', 'JO1D contribution to PO3', 3, -1, 3)
+            fname + '.png', 'JO1D contribution to PO3', 3, -1, 5)
     plotter(data.longitude, data.latitude, np.nanmean(data.hcho_vmr_contrib, axis=0).squeeze(), 'temp/L_hcho_contrib_' +
-            fname + '.png', 'FORM contribution to PO3', 3, -1, 3)
+            fname + '.png', 'FORM contribution to PO3', 3, -1, 5)
     plotter(data.longitude, data.latitude, np.nanmean(data.no2_vmr_contrib, axis=0).squeeze(), 'temp/M_no2_contrib_' +
-            fname + '.png', 'NO2 contribution to PO3', 3, -1, 3)
+            fname + '.png', 'NO2 contribution to PO3', 3, -1, 5)
     plotter(data.longitude, data.latitude, np.nanmean(data.h2o_contrib, axis=0).squeeze(), 'temp/MA_h2o_contrib_' +
-            fname + '.png', 'H2O contribution to PO3', 3, -1, 3)
+            fname + '.png', 'H2O contribution to PO3', 3, -1, 1)
     plotter(data.longitude, data.latitude, np.nanmean(data.PO3, axis=0).squeeze(), 'temp/N_po3_' +
-            fname + '.png', 'PO3', 3, -1, 8)
+            fname + '.png', 'PO3', 3, -1, 10)
     plotter(data.longitude, data.latitude, np.sqrt(np.nanmean(data.po3_err**2, axis=0)).squeeze(), 'temp/O_po3_err_' +
-            fname + '.png', 'PO3_err', 3, 0, 8)
+            fname + '.png', 'PO3_err', 3, 0, 10)
     plotter(data.longitude, data.latitude, np.abs(100.0*np.sqrt(np.nanmean(data.po3_err**2, axis=0)).squeeze()/np.nanmean(data.PO3, axis=0).squeeze()), 'temp/Q_po3_err_rel_' +
             fname + '.png', 'PO3_err', 2, 0, 100.0)
     topdf(fname, folder, 'PO3_report_' + fname + '.pdf')
