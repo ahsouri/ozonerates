@@ -28,7 +28,7 @@ def _read_nc(filename, var):
 
 def predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv):
 
-    normalization_factors = [0.1,3e-5,1.0,1e2,1e1] # jNO2, jO1D, H2O, NO2, HCHO
+    normalization_factors = [0.1,1e-4,1.0,1e2,1e1] # jNO2, jO1D, H2O, NO2, HCHO
     inputs_dnn = np.zeros((np.size(J1),5))
     inputs_dnn[:,0] = J4.flatten()/normalization_factors[0]
     inputs_dnn[:,1] = J1.flatten()/normalization_factors[1]
@@ -165,7 +165,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         J1 = np.reshape(J1, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
 
         # load the DNN model
-        dnn_model = keras.models.load_model('../data/all_best_model.keras')
+        dnn_model = keras.models.load_model('../data/dnn_model_three.keras')
 
         prediction = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv)
         PO3 = np.reshape(prediction, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
@@ -207,7 +207,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         SJ4[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
                  (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
 
-        SJs = SJ1 + SJ4
+        SJs = SJ4
         #SH2O
         prediction_up = predictor(dnn_model,J1,J4,H2O*1.1,NO2_ppbv,HCHO_ppbv)
         prediction_down = predictor(dnn_model,J1,J4,H2O*0.9,NO2_ppbv,HCHO_ppbv)
@@ -227,8 +227,8 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         inputs["J4"].append(J4*1e3)
         inputs["HCHO_ppbv"].append(HCHO_ppbv)
         inputs["NO2_ppbv"].append(NO2_ppbv)
-        inputs["SJ4"].append(SJs)
-        inputs["SJ1"].append(SJs)
+        inputs["SJ4"].append(SJ4)
+        inputs["SJ1"].append(SJ1)
         inputs["SH2O"].append(SH2O)
         inputs["SHCHO"].append(SHCHO)
         inputs["SNO2"].append(SNO2)
