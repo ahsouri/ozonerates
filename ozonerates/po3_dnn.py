@@ -26,21 +26,17 @@ def _read_nc(filename, var):
     nc_fid.close()
     return np.squeeze(out)
 
-def predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv,s_no2,s_hcho):
+def predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv):
 
-    normalization_factors = [0.1,3e-5,1.0,1e2,1e1] # jNO2, jO1D, H2O, NO2, HCHO
+    normalization_factors = [0.1,1e-4,1.0,1e2,1e1] # jNO2, jO1D, H2O, NO2, HCHO
     inputs_dnn = np.zeros((np.size(J1),5))
     inputs_dnn[:,0] = J4.flatten()/normalization_factors[0]
     inputs_dnn[:,1] = J1.flatten()/normalization_factors[1]
     inputs_dnn[:,2] = H2O.flatten()
     inputs_dnn[:,3] = NO2_ppbv.flatten()/normalization_factors[3]
     inputs_dnn[:,4] = HCHO_ppbv.flatten()/normalization_factors[4]
-    
-    # add random errors
-    inputs_dnn[:,3] = inputs_dnn[:,3] + s_no2.flatten()/normalization_factors[3]
-    inputs_dnn[:,4] = inputs_dnn[:,4] + s_hcho.flatten()/normalization_factors[4]
 
-    return np.array(dnn_model.predict(inputs_dnn,verbose=0))
+    return np.array(dnn_model.predict(inputs_dnn,verbose=1))
 
 def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
     '''
@@ -169,38 +165,17 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         J1 = np.reshape(J1, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
 
         # load the DNN model
-        dnn_model = keras.models.load_model('../data/all_best_model.keras')
+        dnn_model = keras.models.load_model('../data/dnn_model_three.keras')
 
-        # monte carlo approximation of errors and prediction
-        n_member = 10000
-        # J1,J4,H2O,NO2_ppbv,HCHO_ppbv
-        s_no2 = np.zeros((np.shape(NO2_ppbv)[0],np.shape(NO2_ppbv)[1],n_member))
-        s_hcho = np.zeros((np.shape(NO2_ppbv)[0],np.shape(NO2_ppbv)[1],n_member))
-        # set the errors
-        for i in range(0,np.shape(s_no2[0])):
-            for j in range(0,np.shape(s_no2)[1]):
-                s_no2[i,j,:] = np.random.normal(0, NO2_ppbv_err, n_member)
-                s_hcho[i,j,:] = np.random.normal(0, HCHO_ppbv_err, n_member)    
-
-        output = Parallel(n_jobs=num_job)(delayed(predictor)(
-            dnn_model, J1, J4, HCHO_ppbv, NO2_ppbv, s_no2[:,:,k].squeeze(), s_hcho[:,:,k].squeeze()) for k in range(0, n_member))
-        
-        output = np.array(output)
-        po3_dist = output[0,:].squeeze()
-        po3_err_dist = output[1,:].squeeze()
-
-        PO3 = np.reshape(po3_dist, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        prediction = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv)
+        PO3 = np.reshape(prediction, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
         PO3[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
                  (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
 
-        PO3_err = np.reshape(po3_err_dist, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
-        PO3_err[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
-                 (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan 
-               
         # sensitivity maps
         #SNO2
-        prediction_up = predictor(dnn_model,J1,J4,H2O,NO2_ppbv*1.1,HCHO_ppbv,NO2_ppbv*0.0,HCHO_ppbv*0.0)
-        prediction_down = predictor(dnn_model,J1,J4,H2O,NO2_ppbv*0.9,HCHO_ppbv,NO2_ppbv*0.0,HCHO_ppbv*0.0)
+        prediction_up = predictor(dnn_model,J1,J4,H2O,NO2_ppbv*1.1,HCHO_ppbv)
+        prediction_down = predictor(dnn_model,J1,J4,H2O,NO2_ppbv*0.9,HCHO_ppbv)
 
         SNO2 = (prediction_up - prediction_down)/0.2
         SNO2 = np.reshape(SNO2, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
@@ -208,31 +183,42 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
                  (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
 
         #SHCHO
-        prediction_up = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv*1.1,NO2_ppbv*0.0,HCHO_ppbv*0.0)
-        prediction_down = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv*0.9,NO2_ppbv*0.0,HCHO_ppbv*0.0)
+        prediction_up = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv*1.1)
+        prediction_down = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv*0.9)
 
         SHCHO = (prediction_up - prediction_down)/0.2
         SHCHO = np.reshape(SHCHO, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
         SHCHO[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
                  (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
         #SJs
-        prediction_up = predictor(dnn_model,J1*1.1,J4*1.1,H2O,NO2_ppbv,HCHO_ppbv,NO2_ppbv*0.0,HCHO_ppbv*0.0)
-        prediction_down = predictor(dnn_model,J1*0.9,J4*0.9,H2O,NO2_ppbv,HCHO_ppbv,NO2_ppbv*0.0,HCHO_ppbv*0.0)
+        prediction_up = predictor(dnn_model,J1*1.1,J4,H2O,NO2_ppbv,HCHO_ppbv)
+        prediction_down = predictor(dnn_model,J1*0.9,J4,H2O,NO2_ppbv,HCHO_ppbv)
 
-        SJs = (prediction_up - prediction_down)/0.2
-        SJs = np.reshape(SJs, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
-        SJs[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
+        SJ1 = (prediction_up - prediction_down)/0.2
+        SJ1 = np.reshape(SJ1, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        SJ1[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
                  (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
-        
+
+        prediction_up = predictor(dnn_model,J1,J4*1.1,H2O,NO2_ppbv,HCHO_ppbv)
+        prediction_down = predictor(dnn_model,J1,J4*0.9,H2O,NO2_ppbv,HCHO_ppbv)
+
+        SJ4 = (prediction_up - prediction_down)/0.2
+        SJ4 = np.reshape(SJ4, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        SJ4[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
+                 (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
+
+        SJs = SJ4
         #SH2O
-        prediction_up = predictor(dnn_model,J1,J4,H2O*1.1,NO2_ppbv,HCHO_ppbv,NO2_ppbv*0.0,HCHO_ppbv*0.0)
-        prediction_down = predictor(dnn_model,J1,J4,H2O*0.9,NO2_ppbv,HCHO_ppbv,NO2_ppbv*0.0,HCHO_ppbv*0.0)
+        prediction_up = predictor(dnn_model,J1,J4,H2O*1.1,NO2_ppbv,HCHO_ppbv)
+        prediction_down = predictor(dnn_model,J1,J4,H2O*0.9,NO2_ppbv,HCHO_ppbv)
 
         SH2O = (prediction_up - prediction_down)/0.2
         SH2O = np.reshape(SH2O, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
         SH2O[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
                  (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
         
+        # error estimates
+        PO3_err2 = ((SNO2/NO2_ppbv)**2)*(NO2_ppbv_err**2)+((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err**2)
         # append inputs and PO3_estimates daily
         PO3_estimates.append(PO3)
         inputs["FNR"].append(np.abs(HCHO_ppbv/NO2_ppbv))
@@ -241,8 +227,8 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         inputs["J4"].append(J4*1e3)
         inputs["HCHO_ppbv"].append(HCHO_ppbv)
         inputs["NO2_ppbv"].append(NO2_ppbv)
-        inputs["SJ4"].append(SJs)
-        inputs["SJ1"].append(SJs)
+        inputs["SJ4"].append(SJ4)
+        inputs["SJ1"].append(SJ1)
         inputs["SH2O"].append(SH2O)
         inputs["SHCHO"].append(SHCHO)
         inputs["SNO2"].append(SNO2)
@@ -250,7 +236,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         inputs["VCD_FORM"].append(VCD_FORM)
         inputs["PBL_no2_factor"].append(PBL_no2_factor)
         inputs["PBL_form_factor"].append(PBL_form_factor)
-        inputs["PO3_err"].append(PO3_err)
+        inputs["PO3_err"].append(np.sqrt(PO3_err2))
 
     FNR = np.array(inputs["FNR"])
     H2O = np.array(inputs["H2O"])

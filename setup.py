@@ -7,7 +7,7 @@ with open('requirements.txt') as fp:
     install_requires = fp.read()
 
 setup(name='OzoneRates',
-      version='0.0.2',
+      version='0.0.3',
       description='Global estimates of PO3 from space',
       long_description=readme,
       long_description_content_type='text/markdown',

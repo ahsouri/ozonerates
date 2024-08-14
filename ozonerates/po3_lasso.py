@@ -131,6 +131,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
             latitude = _read_nc(f, 'latitude')
             longitude = _read_nc(f, 'longitude')
             VCD_NO2_err.append(_read_nc(f, 'VCD_err'))
+
         # reading FORM files daily
         for f in hcho_files:
             VCD_FORM.append(_read_nc(f, 'VCD'))
@@ -251,5 +252,5 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
     PO3_err = np.array(inputs["PO3_err"])
 
     output = param_output(latitude, longitude, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
-                          FNR, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, PO3_err)
+                          FNR, HCHO_ppbv*0.0, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, J1_contrib*0.0, PO3_err)
     return output

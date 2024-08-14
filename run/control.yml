@@ -4,26 +4,29 @@ python_bin: '/discover/nobackup/asouri/miniconda3/bin/python3'
 # to run the job on debug queue
 debug: False
 
+# algorithm (LASSO, DNN)
+algorithm: DNN
+
 # number of jobs
-num_job: 24
+num_job: 12
 
 # set the path of CTM netcdf files (either relative or absolute)
-ctm_dir: '../oisatgmi/download_bucket/gmi/'
+ctm_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'
 
 # the sensor name (OMI, TROPOMI)
-sensor: 'OMI'
+sensor: 'TROPOMI'
 
 # set the sat dir
-sat_dir_no2: '../oisatgmi/download_bucket/omi_no2/'
-sat_dir_hcho: '../oisatgmi/download_bucket/omi_hcho/'
+sat_dir_no2: '/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/ozonerates/trop_no2/'
+sat_dir_hcho: '/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/ozonerates/trop_hcho/'
 
 # starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
-start_date: '2010-06'
-end_date:   '2010-09'
+start_date: '2019-07'
+end_date:   '2019-07'
 
 # output folder for PDF reports
-output_pdf_dir: './report_PO3'
+output_pdf_dir: './report_PO3_test_dnn_model_three_africa.keras'
 
 # output folder for NC diags
-output_nc_inputparam_dir: './diag_inputparam'
-output_nc_PO3_dir: './diag_PO3'
+output_nc_inputparam_dir: './diag_inputparam_tropomi_africa_update'
+output_nc_PO3_dir: './diag_PO3_test_dnn_model_three_africa.keras'

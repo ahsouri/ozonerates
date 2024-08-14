@@ -11,6 +11,7 @@ with open('./control.yml', 'r') as stream:
         raise Exception(exc)
 
 ctm_dir = ctrl_opts['ctm_dir']
+algorithm = ctrl_opts['algorithm']
 sensor = ctrl_opts['sensor']
 sat_dir_no2 = ctrl_opts['sat_dir_no2']
 sat_dir_hcho = ctrl_opts['sat_dir_hcho']
@@ -30,12 +31,23 @@ ozonerates_obj.read_data('GMI', str(sensor), Path(ctm_dir),
                              sat_path, str(year) + f"{month:02}",output_folder = output_nc_inputparam_dir,
                              read_ak=False, trop=True, num_job=num_job)
 if month != 12:
-   ozonerates_obj.po3estimate_empirical(
+   if algorithm == 'DNN':
+      ozonerates_obj.po3estimate_dnn(
+           output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
+           '-01', str(year) + '-' + f"{month+1:02}" + '-01', num_job=num_job)
+   if algorithm == 'LASSO':
+      ozonerates_obj.po3estimate_empirical(
            output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
            '-01', str(year) + '-' + f"{month+1:02}" + '-01', num_job=num_job)
 else:
-   ozonerates_obj.po3estimate_empirical(
+   if algorithm == 'DNN':
+      ozonerates_obj.po3estimate_dnn(
            output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
            '-01', str(year+1) + '-01' + '-01', num_job=num_job)
+   if algorithm == 'LASSO':
+      ozonerates_obj.po3estimate_empirical(
+           output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
+           '-01', str(year+1) + '-01' + '-01', num_job=num_job)
+
 ozonerates_obj.reporting("PO3_estimates_" + str(year) + f"{month:02}",folder=output_pdf_dir)
 ozonerates_obj.writenc("PO3_estimates_" + str(year) + f"{month:02}",folder=output_nc_po3_dir)
