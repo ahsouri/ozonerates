@@ -32,6 +32,7 @@ class ctm_model:
     gas_profile_hcho: np.ndarray
     pressure_mid: np.ndarray
     pressure_edge: np.ndarray
+    ZL: np.ndarray
     PBLH: np.ndarray
     ctmtype: str
 
@@ -65,10 +66,12 @@ def aircraft_reader(filename: str, year: int):
     doy = data[:, header.index(' JDAY')]
     utc_time = data[:, header.index('  UTC')]
     lat = data[:, header.index(' LATITUDE')]
-    lon = data[:, header.index(' LONGITUDE')]-360.0
-    HCHO_ppbv = data[:, header.index(' CH2O_DFGAS')]/1000.0
+    lon = data[:, header.index(' LONGITUDE')]
+    lon[lon>180.0] = lon[lon>180.0] - 360.0
+    HCHO_ppbv = data[:, header.index(' CH2O_CAMS')]/1000.0
     HCHO_ppbv[HCHO_ppbv <= 0] = np.nan
     NO2_ppbv = data[:, header.index(' NO2_MixingRatio')]/1000.0
+    #NO2_ppbv = data[:, header.index(' NO2_NCAR')]/1000.0
     NO2_ppbv[NO2_ppbv <= 0] = np.nan
     altp = data[:, header.index(' PRESSURE')]
     altp[altp <= 0] = np.nan
@@ -165,11 +168,12 @@ def minds_reader_core(filename: str):
     p_edge = p_edge[:, :30, :, :]
     NO2 = NO2[:, :30, :, :]
     HCHO = HCHO[:, :30, :, :]
+    ZL = ZL[:, :30, :, :]
     # shape up the ctm class
     mind_data = ctm_model(latitude, longitude, time,
                           NO2.astype('float16'), HCHO.astype(
                               'float16'), p_mid.astype('float16'),
-                          p_edge.astype('float16'), PBLH, ctmtype)
+                          p_edge.astype('float16'), ZL.astype('float16'),PBLH, ctmtype)
     return mind_data
 
 
@@ -184,7 +188,7 @@ def minds_reader(product_dir: str, YYYYMM: str,) -> list:
     '''
     # read meteorological and chemical fields
     tavg3_3d_gas_files = sorted(
-        glob.glob(product_dir + "/*tavg3_3d_gmi_Nv." + str(YYYYMM) + "*.nc4"))
+        glob.glob(product_dir + "/*tavg3_3d_gmi_Nv." + str(YYYYMM[0:4]) + "*.nc4"))
     # define gas profiles for saving
     outputs = []
     for file in tavg3_3d_gas_files:
@@ -222,7 +226,9 @@ def colocate_est_conversion(ctmdata, airdata):
     ctm_mapped_no2 = []
     ctm_mapped_hcho = []
     ctm_mapped_pblh = []
+    ctm_mapped_ZL = []
     for t1 in range(0, np.size(airdata.time)):
+    #for t1 in range(0, 2500):
         # find the closest day
         closest_index = np.argmin(np.abs(time_aircraft[t1] - time_ctm))
         # find the closest hour (this only works for 3-hourly frequency)
@@ -240,35 +246,40 @@ def colocate_est_conversion(ctmdata, airdata):
         )
         ctm_PBLH = ctmdata[closest_index_day].PBLH[closest_index_hour, :, :].squeeze(
         )
-
-        ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0]))*np.nan
-        ctm_pressure_edge_new = np.zeros(
-            (np.shape(ctm_pressure_edge)[0]))*np.nan
-        ctm_no2_profile_new = np.zeros((np.shape(ctm_mid_pressure)[0]))*np.nan
-        ctm_hcho_profile_new = np.zeros((np.shape(ctm_mid_pressure)[0]))*np.nan
+        ctm_ZL = ctmdata[closest_index_day].ZL[closest_index_hour, :, :].squeeze(
+        )
 
         # pinpoint the closest location based on NN
         cost = np.sqrt((airdata.lon[t1]-ctmdata[0].longitude)
                        ** 2 + (airdata.lat[t1]-ctmdata[0].latitude)**2)
         index_i, index_j = np.where(cost == min(cost.flatten()))
+        # pinpoint the closet altitude pressure based on NN
+        cost = np.abs(airdata.altp[t1]-ctm_mid_pressure[:,index_i, index_j].squeeze())
+        index_z = np.argmin(cost)
+        # picking the right grid
+        ctm_mid_pressure_new = ctm_mid_pressure[index_z, index_i, index_j].squeeze()
+        ctm_pressure_edge_new = ctm_pressure_edge[index_z,index_i, index_j].squeeze()
+        ctm_no2_profile_new = ctm_no2_profile[index_z,index_i, index_j].squeeze()
+        ctm_hcho_profile_new = ctm_hcho_profile[index_z, index_i, index_j].squeeze()
+        ctm_ZL_new = ctm_ZL[index_z,index_i, index_j].squeeze()
+        ctm_PBLH_new = ctm_PBLH[index_i, index_j].squeeze()
 
-        for z in range(0, np.shape(ctm_mid_pressure)[0]):
-            ctm_mid_pressure_new[z] = ctm_mid_pressure[z,
-                                                       index_i, index_j].squeeze()
-            ctm_pressure_edge_new[z] = ctm_pressure_edge[z,
-                                                         index_i, index_j].squeeze()
-            ctm_no2_profile_new[z] = ctm_no2_profile[z,
-                                                     index_i, index_j].squeeze()
-            ctm_hcho_profile_new[z] = ctm_hcho_profile[z,
-                                                       index_i, index_j].squeeze()
+        if np.size(ctm_mid_pressure_new)>1:
+           ctm_mid_pressure_new = np.mean(ctm_mid_pressure_new)
+           ctm_pressure_edge_new = np.mean(ctm_pressure_edge_new)
+           ctm_no2_profile_new = np.mean(ctm_no2_profile_new)
+           ctm_hcho_profile_new = np.mean(ctm_hcho_profile_new)
+           ctm_ZL_new = np.mean(ctm_ZL_new)
 
-        ctm_PBLH_new = ctm_PBLH[index_i, index_j]
+        if np.size(ctm_PBLH_new)>1:
+           ctm_PBLH_new = np.mean(ctm_PBLH_new)
 
         ctm_mapped_pressure.append(ctm_mid_pressure_new)
         ctm_mapped_pressure_edge.append(ctm_pressure_edge_new)
         ctm_mapped_pblh.append(ctm_PBLH_new)
         ctm_mapped_no2.append(ctm_no2_profile_new)
         ctm_mapped_hcho.append(ctm_hcho_profile_new)
+        ctm_mapped_ZL.append(ctm_ZL_new)
 
     # converting the lists to numpy array
     ctm_mapped_pressure = np.array(ctm_mapped_pressure)
@@ -276,7 +287,7 @@ def colocate_est_conversion(ctmdata, airdata):
     ctm_mapped_pblh = np.array(ctm_mapped_pblh)
     ctm_mapped_no2 = np.array(ctm_mapped_no2)
     ctm_mapped_hcho = np.array(ctm_mapped_hcho)
-
+    ctm_mapped_ZL = np.array(ctm_mapped_ZL)
     # now colocating based on each spiral number
     unique = np.unique(airdata.profile_num)
     output = {}
@@ -285,11 +296,12 @@ def colocate_est_conversion(ctmdata, airdata):
     output["HCHO_profile_model"] = []
     output["NO2_profile_model"] = []
     output["pressure_mid"] = []
-    output["pressure_edge"] = []
+    output["dp"] = []
     output["PBLH"] = []
     output["Spiral_num"] = []
     output["time"] = []
     output["lon"] = []
+    output["ZL"] = []
 
     # looping over unique spirals
     for u in range(0, np.size(unique)):
@@ -308,72 +320,106 @@ def colocate_est_conversion(ctmdata, airdata):
         aircraft_lon_unique = airdata.lon[np.where(
             airdata.profile_num == unique[u])]
 
-        # take model fields for this specific spiral and average
-        ctm_press_chosen = np.nanmean(ctm_mapped_pressure[np.argwhere(
-            airdata.profile_num == unique[u]), :], axis=0).squeeze()
-        ctm_press_edge_chosen = np.nanmean(ctm_mapped_pressure_edge[np.argwhere(
-            airdata.profile_num == unique[u]), :], axis=0).squeeze()
-        ctm_pblh_chosen = np.nanmean(
-            ctm_mapped_pblh[np.argwhere(airdata.profile_num == unique[u])]).squeeze()
-        ctm_hcho_chosen = np.nanmean(ctm_mapped_hcho[np.argwhere(
-            airdata.profile_num == unique[u]), :], axis=0).squeeze()
-        ctm_no2_chosen = np.nanmean(ctm_mapped_no2[np.argwhere(
-            airdata.profile_num == unique[u]), :], axis=0).squeeze()
-
+        # take model fields for this specific spiral
+        ctm_press_chosen = ctm_mapped_pressure[np.where(
+            airdata.profile_num == unique[u])]
+        ctm_press_edge_chosen = ctm_mapped_pressure_edge[np.where(
+            airdata.profile_num == unique[u])]
+        ctm_pblh_chosen =np.nanmean(
+            ctm_mapped_pblh[np.where(airdata.profile_num == unique[u])]).squeeze()
+        ctm_hcho_chosen = ctm_mapped_hcho[np.where(
+            airdata.profile_num == unique[u])]
+        ctm_no2_chosen = ctm_mapped_no2[np.where(
+            airdata.profile_num == unique[u])]
+        ctm_ZL_chosen = ctm_mapped_ZL[np.where(
+            airdata.profile_num == unique[u])]
         # sometimes the aircraft pressure doesn't steadily increase/decrease, sort them
         index_sort = np.argsort(aircraft_pres_unique)
         aircraft_pres_unique = aircraft_pres_unique[index_sort]
         aircraft_HCHO_unique = aircraft_HCHO_unique[index_sort]
         aircraft_NO2_unique = aircraft_NO2_unique[index_sort]
         aircraft_time_unique = aircraft_time_unique[index_sort]
+        ctm_no2_chosen = ctm_no2_chosen[index_sort]
+        ctm_hcho_chosen = ctm_hcho_chosen[index_sort]
+        ctm_pres_chosen = ctm_press_chosen[index_sort]
+        ctm_no2_chosen[np.isnan(aircraft_NO2_unique)] = np.nan
+        ctm_hcho_chosen[np.isnan(aircraft_HCHO_unique)] = np.nan
+        ctm_ZL_chosen = ctm_ZL_chosen[index_sort]
+        # map aircraft and ctm  vertical grid into a regular vertical grid
+        regular_grid_edge = np.flip(np.arange(450,1015+20,20))
+        regular_grid_mid = np.zeros(np.size(regular_grid_edge)-1)
+        dp = np.zeros_like(regular_grid_mid)
+        for z in range(0,np.size(regular_grid_edge)-1):
+            regular_grid_mid[z] = 0.5*(regular_grid_edge[z]+regular_grid_edge[z+1])
+            dp[z] = regular_grid_edge[z] - regular_grid_edge[z+1]
 
-        # map aircraft vertical grid into ctm vertical grid
         f = interpolate.interp1d(
             np.log(aircraft_pres_unique),
             aircraft_HCHO_unique, bounds_error=False, fill_value=np.nan)
 
-        interpolated_HCHO = f(np.log(ctm_press_chosen)).squeeze()
+        interpolated_HCHO = f(np.log(regular_grid_mid)).squeeze()
 
         f = interpolate.interp1d(
             np.log(aircraft_pres_unique),
             aircraft_NO2_unique, bounds_error=False, fill_value=np.nan)
 
-        interpolated_NO2 = f(np.log(ctm_press_chosen)).squeeze()
+        interpolated_NO2 = f(np.log(regular_grid_mid)).squeeze()
 
         f = interpolate.interp1d(
             np.log(aircraft_pres_unique),
             aircraft_time_unique, bounds_error=False, fill_value=np.nan)
 
-        interpolated_time = f(np.log(ctm_press_chosen)).squeeze()
+        interpolated_time = f(np.log(regular_grid_mid)).squeeze()
 
         f = interpolate.interp1d(
             np.log(aircraft_pres_unique),
             aircraft_lon_unique, bounds_error=False, fill_value=np.nan)
 
-        interpolated_lon = f(np.log(ctm_press_chosen)).squeeze()
+        interpolated_lon = f(np.log(regular_grid_mid)).squeeze()
+
+
+        f = interpolate.interp1d(
+            np.log(ctm_pres_chosen),
+            ctm_no2_chosen, bounds_error=False, fill_value=np.nan)
+
+        interpolated_NO2_model = f(np.log(regular_grid_mid)).squeeze()
+
+        f = interpolate.interp1d(
+            np.log(ctm_pres_chosen),
+            ctm_hcho_chosen, bounds_error=False, fill_value=np.nan)
+
+        interpolated_HCHO_model = f(np.log(regular_grid_mid)).squeeze()
+
+
+        f = interpolate.interp1d(
+            np.log(ctm_pres_chosen),
+            ctm_ZL_chosen, bounds_error=False, fill_value=np.nan)
+
+        interpolated_ZL_model = f(np.log(regular_grid_mid)).squeeze()
 
         output["HCHO_profile_aircraft"].append(interpolated_HCHO)
         output["NO2_profile_aircraft"].append(interpolated_NO2)
-        output["NO2_profile_model"].append(ctm_no2_chosen)
-        output["HCHO_profile_model"].append(ctm_hcho_chosen)
-        output["pressure_mid"].append(ctm_press_chosen)
-        output["pressure_edge"].append(ctm_press_edge_chosen)
+        output["NO2_profile_model"].append(interpolated_NO2_model)
+        output["HCHO_profile_model"].append(interpolated_HCHO_model)
+        output["pressure_mid"].append(regular_grid_mid)
+        output["dp"].append(dp)
         output["Spiral_num"].append(unique[u])
         output["PBLH"].append(ctm_pblh_chosen)
         output["time"].append(interpolated_time)
         output["lon"].append(np.nanmean(interpolated_lon))
+        output["ZL"].append(interpolated_ZL_model)
 
     output["HCHO_profile_aircraft"] = np.array(output["HCHO_profile_aircraft"])
     output["NO2_profile_aircraft"] = np.array(output["NO2_profile_aircraft"])
     output["pressure_mid"] = np.array(output["pressure_mid"])
-    output["pressure_edge"] = np.array(output["pressure_edge"])
+    output["dp"] = np.array(output["dp"])
     output["Spiral_num"] = np.array(output["Spiral_num"])
     output["NO2_profile_model"] = np.array(output["NO2_profile_model"])
     output["HCHO_profile_model"] = np.array(output["HCHO_profile_model"])
     output["time"] = np.array(output["time"])
     output["lon"] = np.array(output["lon"])
     output["PBLH"] = np.array(output["PBLH"])
-
+    output["ZL"] = np.array(output["ZL"])
     return output
 
 
@@ -388,9 +434,14 @@ def to_mat(spiral_data):
     no2_conversion_air = []
     hcho_conversion_air = []
     hcho_conversion_model = []
+    pbl_mask = []
+    height = []
     for spiral in range(0, np.shape(spiral_data["Spiral_num"])[0]):
         # define if the time is close to 1:45+-1.5 hours
         time_spiral = np.nanmean(spiral_data["time"][spiral, :]).squeeze()
+        print(time_spiral)
+        if np.isnan(time_spiral):
+           continue
         year_spiral = np.floor(time_spiral/10000.0)
         month_spiral = np.floor((time_spiral-year_spiral*10000.0)/100.0)
         day_spiral = np.floor(time_spiral-year_spiral*10000.0-month_spiral*100)
@@ -415,19 +466,20 @@ def to_mat(spiral_data):
                 str(time_spiral_lst), "%Y-%m-%d %H:%M:%S"))
             pressure.append(spiral_data["pressure_mid"][spiral, :])
             NO2_air.append(spiral_data["NO2_profile_aircraft"][spiral, :])
-            NO2_model.append(spiral_data["NO2_profile_model"][spiral, :])
             HCHO_air.append(spiral_data["HCHO_profile_aircraft"][spiral, :])
-            HCHO_model.append(spiral_data["HCHO_profile_model"][spiral, :])
             # conversion calculation
             air_NO2 = spiral_data["NO2_profile_aircraft"][spiral, :]
             ctm_NO2 = spiral_data["NO2_profile_model"][spiral, :]
             air_HCHO = spiral_data["HCHO_profile_aircraft"][spiral, :]
             ctm_HCHO = spiral_data["HCHO_profile_model"][spiral, :]
+            ctm_ZL = spiral_data["ZL"][spiral, :]
             ctm_NO2[np.isnan(air_NO2)] = np.nan
             ctm_HCHO[np.isnan(air_HCHO)] = np.nan
-            dp = spiral_data["pressure_edge"][spiral, :] - \
-                spiral_data["pressure_mid"][spiral, :]
-            dp = dp*2.0
+            air_HCHO[np.isnan(ctm_HCHO)] = np.nan
+            air_NO2[np.isnan(ctm_NO2)] = np.nan
+            NO2_model.append(ctm_NO2)
+            HCHO_model.append(ctm_HCHO)
+            dp = spiral_data["dp"][spiral, :]
             Mair = 28.97e-3
             g = 9.80665
             N_A = 6.02214076e23
@@ -436,13 +488,15 @@ def to_mat(spiral_data):
             mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
             mask_PBL[mask_PBL != 1.0] = np.nan
             no2_conversion_air.append(
-                p.nanmean(mask_PBL*air_NO2)/np.nansum(air_NO2*dp/g/Mair*N_A*1e-4*100.0*1e-15))
-            no2_conversion_model.append(conversion_no2_model=np.nanmean(
-                mask_PBL*ctm_NO2)/np.nansum(ctm_NO2*dp/g/Mair*N_A*1e-4*100.0*1e-15))
+                np.nanmean(1e9*mask_PBL*air_NO2)/np.nansum(air_NO2*dp/g/Mair*N_A*1e-4*100.0*1e-15))
+            no2_conversion_model.append(np.nanmean(
+                1e9*mask_PBL*ctm_NO2)/np.nansum(ctm_NO2*dp/g/Mair*N_A*1e-4*100.0*1e-15))
             hcho_conversion_air.append(np.nanmean(
-                mask_PBL*air_HCHO)/np.nansum(air_HCHO*dp/g/Mair*N_A*1e-4*100.0*1e-15))
+                1e9*mask_PBL*air_HCHO)/np.nansum(air_HCHO*dp/g/Mair*N_A*1e-4*100.0*1e-15))
             hcho_conversion_model.append(np.nanmean(
-                mask_PBL*ctm_HCHO)/np.nansum(ctm_HCHO*dp/g/Mair*N_A*1e-4*100.0*1e-15))
+                1e9*mask_PBL*ctm_HCHO)/np.nansum(ctm_HCHO*dp/g/Mair*N_A*1e-4*100.0*1e-15))
+            pbl_mask.append(mask_PBL)
+            height.append(ctm_ZL)
 
     pressure = np.array(pressure)
     HCHO_air = np.array(HCHO_air)
@@ -453,6 +507,8 @@ def to_mat(spiral_data):
     no2_conversion_model = np.array(no2_conversion_model)
     hcho_conversion_air = np.array(hcho_conversion_air)
     hcho_conversion_model = np.array(hcho_conversion_model)
+    pbl_mask = np.array(pbl_mask)
+    height = np.array(height)
 
     output = {}
     output["pressure"] = pressure
@@ -464,8 +520,9 @@ def to_mat(spiral_data):
     output["no2_conversion_model"] = no2_conversion_model
     output["hcho_conversion_air"] = hcho_conversion_air
     output["hcho_conversion_model"] = hcho_conversion_model
-
-    savemat("output.mat", output)
+    output["pbl_mask"] = pbl_mask
+    output["height"] = height
+    savemat("output_kor.mat", output)
 
     # plotting for debugging
     pressure_mean = np.nanmean(np.array(pressure), axis=0)
@@ -501,7 +558,11 @@ def to_mat(spiral_data):
 
 if __name__ == "__main__":
     aircraft_path = './discoveraq-mrg15-p3b_merge_20130904_R3_thru20130929.ict'
-    aircraft_data1 = aircraft_reader(aircraft_path, 2013)
-    minds_data = minds_reader('./minds/', '201309')
+    aircraft_path = './discoveraq-mrg15-p3b_merge_20110701_R4_thru20110729.ict'
+    #aircraft_path = './discoveraq-mrg10-p3b_merge_20140717_R2_thru20140810.ict'
+    aircraft_path = './discoveraq-mrg10-p3b_merge_20130116_R4_thru20130206.ict'
+    aircraft_path = './korusaq-mrg10-dc8_merge_20160426_R6_thru20160618.ict'
+    aircraft_data1 = aircraft_reader(aircraft_path, 2016)
+    minds_data = minds_reader('./minds/', '201604')
     spiral_data = colocate_est_conversion(minds_data, aircraft_data1)
     to_mat(spiral_data)
