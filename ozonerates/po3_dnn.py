@@ -81,8 +81,8 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         VCD_FORM = []
         PBL_no2_factor = []
         PBL_form_factor = []
-        PL = []
-        T = []
+        #PL = []
+        #T = []
         surface_albedo_no2 = []
         O3col = []
         SZA = []
@@ -96,8 +96,8 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
             PBLH.append(_read_nc(f, 'PBLH'))
             VCD_NO2.append(_read_nc(f, 'VCD'))
             PBL_no2_factor.append(_read_nc(f, 'gas_pbl_factor_no2'))
-            PL.append(_read_nc(f, 'pressure_mid'))
-            T.append(_read_nc(f, 'temperature_mid'))
+            #PL.append(_read_nc(f, 'pressure_mid'))
+            #T.append(_read_nc(f, 'temperature_mid'))
             surface_albedo_no2.append(_read_nc(f, 'surface_albedo'))
             O3col.append(_read_nc(f, 'O3col'))
             SZA.append(_read_nc(f, 'SZA'))
@@ -118,8 +118,8 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         VCD_FORM = np.nanmean(np.array(VCD_FORM), axis=0)
         PBL_no2_factor = np.nanmean(np.array(PBL_no2_factor), axis=0)
         PBL_form_factor = np.nanmean(np.array(PBL_form_factor), axis=0)
-        PL = np.nanmean(np.array(PL), axis=0)
-        T = np.nanmean(np.array(T), axis=0)
+        #PL = np.nanmean(np.array(PL), axis=0)
+        #T = np.nanmean(np.array(T), axis=0)
         H2O = np.nanmean(np.array(H2O), axis=0)
         surface_albedo_no2 = np.nanmean(np.array(surface_albedo_no2), axis=0)
         O3col = np.nanmean(np.array(O3col), axis=0)

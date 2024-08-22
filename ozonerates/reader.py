@@ -140,14 +140,14 @@ def gmi_reader_wrapper(fname_met: str, fname_gas: str, fname_pbl: str) -> ctm_mo
      NO2 = np.nanmean(1e9*NO2*mask_PBL, axis=1).squeeze()/np.nansum(NO2 *
                                      mask_trop*delta_p/g/Mair*N_A*1e-4*100.0*1e-15, axis=1).squeeze()
      #subset the vertical grids to reduce memory usage
-     pressure_mid = pressure_mid[:,0:24,:,:]
-     temperature_mid = temperature_mid[:,0:24,:,:]
-     height_mid = height_mid[:,0:24,:,:]
+     #pressure_mid = pressure_mid[:,0:24,:,:]
+     #temperature_mid = temperature_mid[:,0:24,:,:]
+     #height_mid = height_mid[:,0:24,:,:]
      #calculate the PBL H2O number density
      h2o_num_dens = np.nanmean(h2o_num_dens*mask_PBL, axis=1)
      # shape up the ctm class
      gmi_data = ctm_model(latitude, longitude, time, NO2.astype('float16'), HCHO.astype('float16'), O3.astype('float16'),h2o_num_dens.astype('float16'),
-                                  pressure_mid.astype('float16'), temperature_mid.astype('float16'), height_mid.astype('float16'), PBL.astype('float16'), ctmtype)
+                                  [], [], [], PBL.astype('float16'), ctmtype)
      return gmi_data
 
 def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> list:
@@ -230,30 +230,30 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
                         'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo').astype('float32')
     SZA = _read_group_nc(fname, [
                         'PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
-    p_mid = np.zeros(
-        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
-    if read_ak == True:
-        SWs = np.zeros(
-            (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-        AKs = _read_group_nc(fname, [
-            'PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'averaging_kernel').astype('float16')
-    else:
-        SWs = np.empty((1))
+    #p_mid = np.zeros(
+    #    (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
+    #if read_ak == True:
+    #    SWs = np.zeros(
+    #        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+    #    AKs = _read_group_nc(fname, [
+    #        'PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'averaging_kernel').astype('float16')
+    # else:
+    SWs = np.empty((1))
     # for some reason, in the HCHO product, a and b values are the center instead of the edges (unlike NO2)
-    for z in range(0, 34):
-        p_mid[z, :, :] = (tm5_a[z]+tm5_b[z]*ps[:, :])
-        if read_ak == True:
-            SWs[z, :, :] = AKs[:, :, z]*amf_total
+    #for z in range(0, 34):
+    #    p_mid[z, :, :] = (tm5_a[z]+tm5_b[z]*ps[:, :])
+    #    if read_ak == True:
+    #        SWs[z, :, :] = AKs[:, :, z]*amf_total
     # remove bad SWs
-    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
-                 (SWs > 100.0) | (SWs < 0.0))] = 0.0
+    #SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+    #             (SWs > 100.0) | (SWs < 0.0))] = 0.0
     # read the precision
     uncertainty = _read_group_nc(fname, ['PRODUCT'],
                                  'formaldehyde_tropospheric_vertical_column_precision')
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
 
     tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), latitude_center, longitude_center,
-                                [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo, SZA, surface_alt)
+                                [], [], uncertainty, quality_flag, [], SWs, [], [], [], surface_albedo, SZA, surface_alt)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -336,21 +336,21 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
                         'PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
     p_mid = np.zeros(
         (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-    if read_ak == True:
-        SWs = np.zeros(
-            (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-        AKs = _read_group_nc(fname, ['PRODUCT'],
-                             'averaging_kernel').astype('float16')
-    else:
-        SWs = np.empty((1))
+    #if read_ak == True:
+    #    SWs = np.zeros(
+    #        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+    #    AKs = _read_group_nc(fname, ['PRODUCT'],
+    #                         'averaging_kernel').astype('float16')
+    #else:
+    SWs = np.empty((1))
     for z in range(0, 34):
         p_mid[z, :, :] = 0.5*(tm5_a[z]+tm5_b[z]*ps[:, :] +
                               tm5_a[z+1]+tm5_b[z+1]*ps[:, :])
-        if read_ak == True:
-            SWs[z, :, :] = AKs[:, :, z]*amf_total
+    #    if read_ak == True:
+    #        SWs[z, :, :] = AKs[:, :, z]*amf_total
     # remove bad SWs
-    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
-                 (SWs > 100.0) | (SWs < 0.0))] = 0.0
+    # SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+    #             (SWs > 100.0) | (SWs < 0.0))] = 0.0
     # read the tropopause layer index
     if trop == True:
         trop_layer = _read_group_nc(
@@ -365,7 +365,7 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
     else:
         tropopause = np.empty((1))
     tropomi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center, longitude_center,
-                                [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo, SZA, surface_alt)
+                                [], [], uncertainty, quality_flag, [], SWs, [], [], [], surface_albedo, SZA, surface_alt)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -459,19 +459,19 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
     # read pressures for SWs
     ps = _read_group_nc(fname, ['GEOLOCATION_DATA'],
                         'ScatteringWeightPressure').astype('float16')
-    p_mid = np.zeros(
-        (35, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-    if read_ak == True:
-        SWs = _read_group_nc(fname, ['SCIENCE_DATA'],
-                             'ScatteringWeight').astype('float16')
-        SWs = SWs.transpose((2, 0, 1))
-    else:
-        SWs = np.empty((1))
-    for z in range(0, 35):
-        p_mid[z, :, :] = ps[z]
+    #p_mid = np.zeros(
+    #    (35, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+    #if read_ak == True:
+    #    SWs = _read_group_nc(fname, ['SCIENCE_DATA'],
+    #                         'ScatteringWeight').astype('float16')
+    #    SWs = SWs.transpose((2, 0, 1))
+    # else:
+    SWs = np.empty((1))
+    #for z in range(0, 35):
+    #    p_mid[z, :, :] = ps[z]
     # remove bad SWs
-    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
-                 (SWs > 100.0) | (SWs < 0.0))] = 0.0
+    #SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+    #             (SWs > 100.0) | (SWs < 0.0))] = 0.0
     # read the tropopause pressure
     if trop == True:
         tropopause = _read_group_nc(
@@ -480,7 +480,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
         tropopause = np.empty((1))
     # populate omi class
     omi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center,
-                            longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs,
+                            longitude_center, [], [], uncertainty, quality_flag, [], SWs,
                             [], [], [], train_ref, SZA, surface_terrain)
     # interpolation
     if (ctm_models_coordinate is not None):
@@ -558,23 +558,23 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
                        193.097, 203.259, 212.15, 218.776, 223.898, 224.363, 216.865, 201.192, 176.93, 150.393, 127.837, 108.663, 92.36572, 78.51231, 56.38791, 40.17541, 28.36781, 19.7916, 9.292942, 4.076571, 1.65079, 0.6167791, 0.211349, 0.06600001, 0.01])
         b0 = np.array([1., 0.984952, 0.963406, 0.941865, 0.920387, 0.898908, 0.877429, 0.856018, 0.8346609, 0.8133039, 0.7919469, 0.7706375, 0.7493782, 0.721166, 0.6858999, 0.6506349, 0.6158184, 0.5810415, 0.5463042,
                        0.4945902, 0.4437402, 0.3928911, 0.3433811, 0.2944031, 0.2467411, 0.2003501, 0.1562241, 0.1136021, 0.06372006, 0.02801004, 0.006960025, 8.175413e-09, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-        p_mid = np.zeros(
-            (np.size(a0)-1, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-        if read_ak == True:
-            SWs = _read_group_nc(fname, ['support_data'],
-                                 'scattering_weights').astype('float16')
-        else:
-            SWs = np.empty((1))
-        for z in range(0, np.size(a0)-1):
-            p_mid[z, :, :] = 0.5*((a0[z] + b0[z]*ps) + (a0[z+1] + b0[z+1]*ps))
+        #p_mid = np.zeros(
+        #    (np.size(a0)-1, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+        #if read_ak == True:
+        #    SWs = _read_group_nc(fname, ['support_data'],
+        #                         'scattering_weights').astype('float16')
+        #else:
+        SWs = np.empty((1))
+        #for z in range(0, np.size(a0)-1):
+        #    p_mid[z, :, :] = 0.5*((a0[z] + b0[z]*ps) + (a0[z+1] + b0[z+1]*ps))
         # remove bad SWs
-        SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
-                     (SWs > 100.0) | (SWs < 0.0))] = 0.0
+        #SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+        #             (SWs > 100.0) | (SWs < 0.0))] = 0.0
         # no need to read tropopause for hCHO
         tropopause = np.empty((1))
         # populate omi class
         omi_hcho = satellite_amf(vcd, scd, time, tropopause, latitude_center,
-                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], surface_albedo, SZA, terrain_height)
+                                 longitude_center, [], [], uncertainty, quality_flag, [], SWs, [], [], [], surface_albedo, SZA, terrain_height)
         # interpolation
         if (ctm_models_coordinate is not None):
             print('Currently interpolating ...')
