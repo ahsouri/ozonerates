@@ -10,6 +10,7 @@ from scipy.interpolate import interpn
 import datetime
 from ozonerates.config import param_output
 from joblib import Parallel, delayed
+import pickle
 
 warnings.filterwarnings("ignore",category=RuntimeWarning)
 
@@ -28,13 +29,20 @@ def _read_nc(filename, var):
 
 def predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv):
 
-    normalization_factors = [0.1,1e-4,1.0,1e2,1e1] # jNO2, jO1D, H2O, NO2, HCHO
+    p = pickle.load(open('../data/normalization_weights.pkl','rb'))
+    #normalization_factors = [0.1,1e-4,1.0,1e2,1e1] # jNO2, jO1D, H2O, NO2, HCHO
     inputs_dnn = np.zeros((np.size(J1),5))
-    inputs_dnn[:,0] = J4.flatten()/normalization_factors[0]
-    inputs_dnn[:,1] = J1.flatten()/normalization_factors[1]
-    inputs_dnn[:,2] = H2O.flatten()
-    inputs_dnn[:,3] = NO2_ppbv.flatten()/normalization_factors[3]
-    inputs_dnn[:,4] = HCHO_ppbv.flatten()/normalization_factors[4]
+    #inputs_dnn[:,0] = J4.flatten()/normalization_factors[0]
+    #inputs_dnn[:,1] = J1.flatten()/normalization_factors[1]
+    #inputs_dnn[:,2] = H2O.flatten()
+    #inputs_dnn[:,3] = NO2_ppbv.flatten()/normalization_factors[3]
+    #inputs_dnn[:,4] = HCHO_ppbv.flatten()/normalization_factors[4]
+
+    inputs_dnn[:,0] = (J4.flatten()-p[0]["jNO2"])/p[1]["jNO2"]
+    inputs_dnn[:,1] = (J1.flatten()-p[0]["jO1D"])/p[1]["jO1D"]
+    inputs_dnn[:,2] = (H2O.flatten()*1e18 - p[0]["H2O"])/p[1]["H2O"]
+    inputs_dnn[:,3] = (NO2_ppbv.flatten() - p[0]["NO2"])/p[1]["NO2"]
+    inputs_dnn[:,4] = (HCHO_ppbv.flatten() - p[0]["HCHO"])/p[1]["HCHO"]
 
     return np.array(dnn_model.predict(inputs_dnn,verbose=1))
 
@@ -165,7 +173,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         J1 = np.reshape(J1, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
 
         # load the DNN model
-        dnn_model = keras.models.load_model('../data/dnn_model_three.keras')
+        dnn_model = keras.models.load_model('../data/dnn_model_zscore.keras')
 
         prediction = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv)
         PO3 = np.reshape(prediction, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
