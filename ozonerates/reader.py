@@ -431,12 +431,12 @@ def omi_reader_no2_nasa(fname: str, trop: bool, ctm_models_coordinate=None, read
     surface_terrain = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'TerrainHeight').astype('float32')
     # read quality flag
-    cf_fraction = quality_flag_temp = _read_group_nc(
+    cf_fraction = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'CloudFraction').astype('float16')
     cf_fraction_mask = cf_fraction < 0.3
     cf_fraction_mask = np.multiply(cf_fraction_mask, 1.0).squeeze()
 
-    train_ref = quality_flag_temp = _read_group_nc(
+    train_ref = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'TerrainReflectivity').astype('float16')
     train_ref_mask = train_ref < 0.6
     train_ref_mask = np.multiply(train_ref_mask, 1.0).squeeze()
@@ -549,29 +549,25 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
         fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
 
     # read quality flag
-    cf_fraction = quality_flag_temp = _read_group_nc(
+    cf_fraction = _read_group_nc(
         fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'cloud_radiance_fraction_no2').astype('float16')
     cf_fraction_mask = cf_fraction < 0.3
     cf_fraction_mask = np.multiply(cf_fraction_mask, 1.0).squeeze()
 
-    train_ref = quality_flag_temp = _read_group_nc(
+    train_ref  = _read_group_nc(
         fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo_no2').astype('float16')
-    train_ref_mask = train_ref < 0.6
-    train_ref_mask = np.multiply(train_ref_mask, 1.0).squeeze()
 
-    quality_flag_temp = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'processing_quality_flags').astype('float16')
-    quality_flag = np.zeros_like(quality_flag_temp)*-100.0
-    for i in range(0, np.shape(quality_flag)[0]):
-        for j in range(0, np.shape(quality_flag)[1]):
-            flag = '{0:08b}'.format(int(quality_flag_temp[i, j]))
-            if flag[-1] == '0':
-                quality_flag[i, j] = 1.0
-            if flag[-1] == '1':
-                if flag[-2] == '0':
-                    quality_flag[i, j] = 1.0
+    processing_flag = _read_group_nc(
+        fname, ['PRODUCT'], 'processing_error_flag').astype('float16')
+    proc_mask = processing_flag == 0.0
+    proc_mask = np.multiply(proc_mask, 1.0).squeeze()
 
-    quality_flag = quality_flag*cf_fraction_mask*train_ref_mask
+    snow_flag = _read_group_nc(
+        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'snow_ice_flag').astype('float16')
+    snow_mask = np.logical_or(snow_flag < 10,snow_flag==255)
+    snow_mask = np.multiply(snow_mask, 1.0).squeeze()
+
+    quality_flag = snow_mask*cf_fraction_mask*proc_mask
     # remove edges because their footprint is large
     quality_flag[:,0:2]=-100.0
     quality_flag[:,-2::]=-100.0
