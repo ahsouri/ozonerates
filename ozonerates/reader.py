@@ -542,6 +542,8 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
     vcd = (vcd*1e-15).astype('float16')
     scd = (scd*1e-15).astype('float16')
     uncertainty = (uncertainty*1e-15).astype('float16')
+    # bias correction based on Pinardi et al. 2021:
+    vcd = (vcd - 0.26)/0.83
 
     SZA = _read_group_nc(
         fname, ['PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
@@ -551,7 +553,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
     # read quality flag
     cf_fraction = _read_group_nc(
         fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'cloud_radiance_fraction_no2').astype('float16')
-    cf_fraction_mask = cf_fraction < 0.3
+    cf_fraction_mask = cf_fraction < 0.5
     cf_fraction_mask = np.multiply(cf_fraction_mask, 1.0).squeeze()
 
     train_ref  = _read_group_nc(
@@ -653,6 +655,9 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
         vcd = (vcd*1e-15).astype('float16')
         scd = (scd*1e-15).astype('float16')
         uncertainty = (uncertainty*1e-15).astype('float16')
+        # bias correction based on Zolal's work
+        vcd = (vcd - 0.821)/(0.79)
+
         # read quality flag
         cf_fraction = _read_group_nc(
             fname, ['support_data'], 'cloud_fraction').astype('float16')
@@ -757,14 +762,15 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
     '''
 
     # find L2 files first
-    if satellite_product_name.split('_')[-1] != 'O3':
-        print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc")
-        L2_files = sorted(glob.glob(product_dir + "/*" +
+    if satellite_product_name.split('_')[-1] == 'HCHO':
+       print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc")
+       L2_files = sorted(glob.glob(product_dir + "/*" +
                                     YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc"))
-    else:
-        print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.he5")
-        L2_files = sorted(glob.glob(product_dir + "/*" +
-                                    YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.he5"))
+    if satellite_product_name.split('_')[-1] == 'NO2':
+       print(product_dir + "/*" + YYYYMM[0:4]  + YYYYMM[4::] + "*.nc")
+       L2_files = sorted(glob.glob(product_dir + "/*" +
+                                    YYYYMM[0:4]  + YYYYMM[4::] + "*.nc"))
+
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_no2)(
