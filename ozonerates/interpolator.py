@@ -14,18 +14,18 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
         interpolator = LinearNDInterpolator(
             interpol_func, (Z).flatten(), fill_value=np.nan)
         ZZ = interpolator((X, Y))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold*2.0] = np.nan
     elif interpolator_type == 2:
         interpolator = NearestNDInterpolator(interpol_func, (Z).flatten())
         ZZ = interpolator((X, Y))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold*2.0] = np.nan
     elif interpolator_type == 3:
         interpolator = RBFInterpolator(
             interpol_func, (Z).flatten(), neighbors=5)
         XX = np.stack([X.ravel(), Y.ravel()], -1)
         ZZ = interpolator(XX)
         ZZ = ZZ.reshape(np.shape(X))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold*2.0] = np.nan
     else:
         raise Exception(
             "other type of interpolation methods has not been implemented yet")
@@ -156,18 +156,18 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     if np.isnan(np.nanmean(vcd.flatten())):
        print("the satellite granule doesn't fall into the region - skipping!")
        return 0
-    if isinstance(sat_data, satellite_amf):
-        print('....................... scd')
-        _, _, scd, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
-            tri, sat_data.scd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-            ctm_models_coordinate, grid_size, threshold_ctm)
-    print('....................... tropopause')
-    if np.size(sat_data.tropopause) != 1:
-        _, _, tropopause, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
-            tri, sat_data.tropopause*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-            ctm_models_coordinate, grid_size, threshold_ctm)
-    else:
-        tropopause = np.empty((1))
+    #if isinstance(sat_data, satellite_amf):
+    #    print('....................... scd')
+    #    _, _, scd, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+    #        tri, sat_data.scd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+    #        ctm_models_coordinate, grid_size, threshold_ctm)
+    #print('....................... tropopause')
+    #if np.size(sat_data.tropopause) != 1:
+    #    _, _, tropopause, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+    #        tri, sat_data.tropopause*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+    #        ctm_models_coordinate, grid_size, threshold_ctm)
+    #else:
+    tropopause = np.empty((1))
 
     latitude_center = upscaled_Y
     longitude_center = upscaled_X
