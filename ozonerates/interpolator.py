@@ -202,6 +202,6 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     #pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
     #                         np.shape(upscaled_X)[1]))
 
-    interpolated_sat = satellite_amf(vcd, scd, sat_data.time, tropopause, latitude_center, longitude_center, [
+    interpolated_sat = satellite_amf(vcd, [], sat_data.time, tropopause, latitude_center, longitude_center, [
     ], [], uncertainty, mask, [], scattering_weights, upscaled_ctm_needed, [], [], surface_albedo, SZA, surface_alt)
     return interpolated_sat

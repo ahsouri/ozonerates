@@ -1,4 +1,4 @@
-import tensorflow as tf 
+import tensorflow as tf
 import numpy as np
 from tensorflow import keras
 import warnings
@@ -12,7 +12,8 @@ from ozonerates.config import param_output
 from joblib import Parallel, delayed
 import pickle
 
-warnings.filterwarnings("ignore",category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 
 def _daterange(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
@@ -27,24 +28,26 @@ def _read_nc(filename, var):
     nc_fid.close()
     return np.squeeze(out)
 
-def predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv):
 
-    p = pickle.load(open('../data/normalization_weights.pkl','rb'))
-    #normalization_factors = [0.1,1e-4,1.0,1e2,1e1] # jNO2, jO1D, H2O, NO2, HCHO
-    inputs_dnn = np.zeros((np.size(J1),5))
+def predictor(dnn_model, J1, J4, H2O, NO2_ppbv, HCHO_ppbv):
+
+    p = pickle.load(open('../data/normalization_weights.pkl', 'rb'))
+    # normalization_factors = [0.1,1e-4,1.0,1e2,1e1] # jNO2, jO1D, H2O, NO2, HCHO
+    inputs_dnn = np.zeros((np.size(J1), 5))
     #inputs_dnn[:,0] = J4.flatten()/normalization_factors[0]
     #inputs_dnn[:,1] = J1.flatten()/normalization_factors[1]
     #inputs_dnn[:,2] = H2O.flatten()
     #inputs_dnn[:,3] = NO2_ppbv.flatten()/normalization_factors[3]
     #inputs_dnn[:,4] = HCHO_ppbv.flatten()/normalization_factors[4]
 
-    inputs_dnn[:,0] = (J4.flatten()-p[0]["jNO2"])/p[1]["jNO2"]
-    inputs_dnn[:,1] = (J1.flatten()-p[0]["jO1D"])/p[1]["jO1D"]
-    inputs_dnn[:,2] = (H2O.flatten()*1e18 - p[0]["H2O"])/p[1]["H2O"]
-    inputs_dnn[:,3] = (NO2_ppbv.flatten() - p[0]["NO2"])/p[1]["NO2"]
-    inputs_dnn[:,4] = (HCHO_ppbv.flatten() - p[0]["HCHO"])/p[1]["HCHO"]
+    inputs_dnn[:, 0] = (J4.flatten()-p[0]["jNO2"])/p[1]["jNO2"]
+    inputs_dnn[:, 1] = (J1.flatten()-p[0]["jO1D"])/p[1]["jO1D"]
+    inputs_dnn[:, 2] = (H2O.flatten()*1e18 - p[0]["H2O"])/p[1]["H2O"]
+    inputs_dnn[:, 3] = (NO2_ppbv.flatten() - p[0]["NO2"])/p[1]["NO2"]
+    inputs_dnn[:, 4] = (HCHO_ppbv.flatten() - p[0]["HCHO"])/p[1]["HCHO"]
 
-    return np.array(dnn_model.predict(inputs_dnn,verbose=1))
+    return np.array(dnn_model.predict(inputs_dnn, verbose=1))
+
 
 def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
     '''
@@ -113,7 +116,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
             latitude = _read_nc(f, 'latitude')
             longitude = _read_nc(f, 'longitude')
             VCD_NO2_err.append(_read_nc(f, 'VCD_err'))
-            H2O.append(_read_nc(f,'H2O'))
+            H2O.append(_read_nc(f, 'H2O'))
         # reading FORM files daily
         for f in hcho_files:
             VCD_FORM.append(_read_nc(f, 'VCD'))
@@ -175,58 +178,56 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         # load the DNN model
         dnn_model = keras.models.load_model('../data/dnn_model_zscore.keras')
 
-        prediction = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv)
-        PO3 = np.reshape(prediction, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        factors_perturb = np.array([(1, 1, 1, 1, 1), (1.1, 1, 1, 1, 1), (0.9, 1, 1, 1, 1), (1, 1.1, 1, 1, 1), (1, 0.9, 1, 1, 1), (1, 1, 1.1, 1, 1),
+                                    (1, 1, 0.9, 1, 1), (1, 1, 1, 1.1, 1), (1, 1, 1, 0.9, 1), (1, 1, 1, 1, 1.1), (1, 1, 1, 1, 0.9)])
+        output = Parallel(n_jobs=num_job)(delayed(predictor)(
+            dnn_model, J1*factors_perturb[i, 0], J4*factors_perturb[i,
+                                                                    1], H2O*factors_perturb[i, 2], NO2_ppbv*factors_perturb[i, 3],
+            HCHO_ppbv*factors_perturb[i, 4]) for i in range(0, 11))
+
+        PO3 = np.reshape(np.array(output[0]), (np.shape(
+            NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
         PO3[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
-                 (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
+                     (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
 
         # sensitivity maps
-        #SNO2
-        prediction_up = predictor(dnn_model,J1,J4,H2O,NO2_ppbv*1.1,HCHO_ppbv)
-        prediction_down = predictor(dnn_model,J1,J4,H2O,NO2_ppbv*0.9,HCHO_ppbv)
 
-        SNO2 = (prediction_up - prediction_down)/0.2
-        SNO2 = np.reshape(SNO2, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
-        SNO2[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
-                 (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
-
-        #SHCHO
-        prediction_up = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv*1.1)
-        prediction_down = predictor(dnn_model,J1,J4,H2O,NO2_ppbv,HCHO_ppbv*0.9)
-
-        SHCHO = (prediction_up - prediction_down)/0.2
-        SHCHO = np.reshape(SHCHO, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
-        SHCHO[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
-                 (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
-        #SJs
-        prediction_up = predictor(dnn_model,J1*1.1,J4,H2O,NO2_ppbv,HCHO_ppbv)
-        prediction_down = predictor(dnn_model,J1*0.9,J4,H2O,NO2_ppbv,HCHO_ppbv)
-
-        SJ1 = (prediction_up - prediction_down)/0.2
+        # SJs
+        SJ1 = (np.array(output[1]) - np.array(output[2]))/0.2
         SJ1 = np.reshape(SJ1, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
         SJ1[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
-                 (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
+                     (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
 
-        prediction_up = predictor(dnn_model,J1,J4*1.1,H2O,NO2_ppbv,HCHO_ppbv)
-        prediction_down = predictor(dnn_model,J1,J4*0.9,H2O,NO2_ppbv,HCHO_ppbv)
-
-        SJ4 = (prediction_up - prediction_down)/0.2
+        SJ4 = (np.array(output[3]) - np.array(output[4]))/0.2
         SJ4 = np.reshape(SJ4, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
         SJ4[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
-                 (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
+                     (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
 
-        SJs = SJ4
-        #SH2O
-        prediction_up = predictor(dnn_model,J1,J4,H2O*1.1,NO2_ppbv,HCHO_ppbv)
-        prediction_down = predictor(dnn_model,J1,J4,H2O*0.9,NO2_ppbv,HCHO_ppbv)
+        # SH2O
 
-        SH2O = (prediction_up - prediction_down)/0.2
+        SH2O = (np.array(output[5]) - np.array(output[6]))/0.2
         SH2O = np.reshape(SH2O, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
         SH2O[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
-                 (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
-        
+                      (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
+
+        # SNO2
+
+        SNO2 = (np.array(output[7]) - np.array(output[8]))/0.2
+        SNO2 = np.reshape(SNO2, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        SNO2[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
+                      (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
+
+        # SHCHO
+
+        SHCHO = (np.array(output[9]) - np.array(output[10]))/0.2
+        SHCHO = np.reshape(
+            SHCHO, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        SHCHO[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
+                       (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
+
         # error estimates
-        PO3_err2 = ((SNO2/NO2_ppbv)**2)*(NO2_ppbv_err**2)+((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err**2)
+        PO3_err2 = ((SNO2/NO2_ppbv)**2)*(NO2_ppbv_err**2) + \
+            ((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err**2)
         # append inputs and PO3_estimates daily
         PO3_estimates.append(PO3)
         inputs["FNR"].append(np.abs(HCHO_ppbv/NO2_ppbv))
@@ -265,5 +266,5 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
     PO3_err = np.array(inputs["PO3_err"])
 
     output = param_output(latitude, longitude, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
-                          FNR, H2O, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, SH2O,PO3_err)
+                          FNR, H2O, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, SH2O, PO3_err)
     return output
