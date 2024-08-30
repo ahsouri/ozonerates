@@ -11,6 +11,7 @@ with open('./control.yml', 'r') as stream:
         raise Exception(exc)
 
 ctm_dir = ctrl_opts['ctm_dir']
+ctm_type = ctrl_opts['ctm_type']
 algorithm = ctrl_opts['algorithm']
 sensor = ctrl_opts['sensor']
 sat_dir_no2 = ctrl_opts['sat_dir_no2']
@@ -27,7 +28,7 @@ ozonerates_obj = ozonerates()
 sat_path = []
 sat_path.append(Path(sat_dir_no2))
 sat_path.append(Path(sat_dir_hcho))
-ozonerates_obj.read_data('GMI', str(sensor), Path(ctm_dir),
+ozonerates_obj.read_data(ctm_type, str(sensor), Path(ctm_dir),
                              sat_path, str(year) + f"{month:02}",output_folder = output_nc_inputparam_dir,
                              read_ak=False, trop=True, num_job=num_job)
 if month != 12:
