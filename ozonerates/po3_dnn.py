@@ -46,7 +46,7 @@ def predictor(dnn_model, J1, J4, H2O, NO2_ppbv, HCHO_ppbv):
     inputs_dnn[:, 3] = (NO2_ppbv.flatten() - p[0]["NO2"])/p[1]["NO2"]
     inputs_dnn[:, 4] = (HCHO_ppbv.flatten() - p[0]["HCHO"])/p[1]["HCHO"]
 
-    return np.array(dnn_model.predict(inputs_dnn, verbose=1))
+    return np.array(dnn_model.predict(inputs_dnn, verbose=0))
 
 
 def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):

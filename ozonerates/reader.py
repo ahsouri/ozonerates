@@ -211,7 +211,7 @@ def minds_reader_wrapper(fname_mind: str) -> ctm_model:
                    0.000000e00, 0.000000e00, 0.000000e00, 0.000000e00, 0.000000e00, 0.000000e00,
                    0.000000e00, 0.000000e00, 0.000000e00, 0.000000e00, 0.000000e00, 0.000000e00,
                    0.000000e00])
-     p_mid = np.zeros_like(HCHO)
+     p_mid = np.zeros_like(delta_p)
      for z in range(0, np.size(a0)-1):
         p_mid[:, z, :, :] = 0.5 * \
             ((a0[z] + b0[z]*surface_press) + (a0[z+1] + b0[z+1]*surface_press))
@@ -230,8 +230,7 @@ def minds_reader_wrapper(fname_mind: str) -> ctm_model:
      h2o_num_dens = h2o_num_dens*1e-18
      height_mid = _read_nc(fname_mind, 'ZL')/1000.0
      height_mid = np.flip(height_mid, axis=1)  # from bottom to top
-     PBL = _read_nc(fname_mind, 'PBLH')
-     ZL = np.flip(_read_nc(fname_mind, 'ZL'), axis=1)
+     PBL = _read_nc(fname_mind, 'PBLH')/1000.0
      tropp = _read_nc(fname_mind, 'TROPPB')/100.0
      # read ozone
      O3 = np.flip(_read_nc(
@@ -242,13 +241,12 @@ def minds_reader_wrapper(fname_mind: str) -> ctm_model:
      # read hcho profiles
      HCHO = np.flip(_read_nc(
          fname_mind, 'CH2O'), axis=1)
-     
      # find PBLH in pressure
      PBLH = np.zeros_like(PBL)
      for i in range(0, np.shape(PBL)[0]):
         for j in range(0, np.shape(PBL)[1]):
             for k in range(0, np.shape(PBL)[2]):
-                cost = abs(ZL[i, :, j, k].squeeze() - PBL[i, j, k])
+                cost = abs(height_mid[i, :, j, k].squeeze() - PBL[i, j, k])
                 index_pbl = np.argmin(cost)
                 PBLH[i, j, k] = p_mid[i, index_pbl, j, k]
 
@@ -327,7 +325,7 @@ def MINDS_reader(product_dir: str, YYYYMM: str, num_job=1) -> list:
     tavg3_3d_gas_files = sorted(
         glob.glob(product_dir + "/*tavg3_3d_gmi_Nv." + str(YYYYMM[0:4]) + "*.nc4"))
     # define gas profiles for saving
-    outputs = Parallel(n_jobs=num_job)(delayed(gmi_reader_wrapper)(
+    outputs = Parallel(n_jobs=num_job)(delayed(minds_reader_wrapper)(
         tavg3_3d_gas_files[k]) for k in range(len(tavg3_3d_gas_files)))
     return outputs
 
