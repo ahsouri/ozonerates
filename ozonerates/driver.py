@@ -10,13 +10,13 @@ class ozonerates(object):
     def __init__(self) -> None:
         pass
 
-    def read_data(self, ctm_type: str, sensor: str, ctm_path: Path, sat_path: list, YYYYMM: str, output_folder='diag', read_ak=False, trop=True, num_job=1):
+    def read_data(self, ctm_type: str, ctm_freq:str, sensor: str, ctm_path: Path, sat_path: list, YYYYMM: str, output_folder='diag', read_ak=False, trop=True, num_job=1):
         '''
            This function reads GMI and OMI/TROPOMI NO2 and HCHO data and generate ncfiles at the end
         '''
         reader_obj = readers()
         # initialize
-        reader_obj.add_ctm_data(ctm_type, ctm_path)
+        reader_obj.add_ctm_data(ctm_type, ctm_freq, ctm_path)
         reader_obj.read_ctm_data(YYYYMM, num_job=num_job)
         self.ctmdata = reader_obj.ctm_data
         # NO2
@@ -25,7 +25,7 @@ class ozonerates(object):
         reader_obj.read_satellite_data(
             YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
         self.satno2 = reader_obj.sat_data
-        self.o3paramno2 = ctmpost(self.satno2,self.ctmdata)
+        self.o3paramno2 = ctmpost(self.satno2,self.ctmdata,ctm_freq)
         self.satno2 = []
         reader_obj.sat_data = []
         # saving as netcdf files
@@ -41,7 +41,7 @@ class ozonerates(object):
         reader_obj.read_satellite_data(
             YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
         self.sathcho = reader_obj.sat_data
-        self.o3paramhcho = ctmpost(self.sathcho,self.ctmdata)
+        self.o3paramhcho = ctmpost(self.sathcho,self.ctmdata,ctm_freq)
         self.sathcho = []
         self.ctmdata = []
         reader_obj = []

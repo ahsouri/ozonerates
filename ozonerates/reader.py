@@ -311,19 +311,24 @@ def GMI_reader(product_dir: str, YYYYMM: str, num_job=1) -> list:
         tavg3_3d_met_files[k], tavg3_3d_gas_files[k], tavg1_2d_pbl[k]) for k in range(len(tavg3_3d_met_files)))
     return outputs
 
-def MINDS_reader(product_dir: str, YYYYMM: str, num_job=1) -> list:
+def MINDS_reader(product_dir: str, YYYYMM: str, freq, num_job=1) -> list:
     '''
        MINDS reader
        Inputs:
              product_dir [str]: the folder containing the GMI data
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
-            num_obj [int]: number of jobs for parallel computation
+             num_obj [int]: number of jobs for parallel computation
+             freq [str]: daily or monthly
        Output:
              minds_fields [ctm_model]: a dataclass format (see config.py)
     '''
     # read meteorological and chemical fields
-    tavg3_3d_gas_files = sorted(
-        glob.glob(product_dir + "/*tavg3_3d_gmi_Nv." + str(YYYYMM[0:4]) + "*.nc4"))
+    if freq == 'daily':
+       tavg3_3d_gas_files = sorted(
+           glob.glob(product_dir + "/*tavg3_3d_gmi_Nv." + str(YYYYMM) + "*.nc4"))
+    if freq == 'monthly':
+       tavg3_3d_gas_files = sorted(
+           glob.glob(product_dir + "/*tavg3_3d_gmi_Nv.diurnal." + str(YYYYMM) + "*.nc4"))
     # define gas profiles for saving
     outputs = Parallel(n_jobs=num_job)(delayed(minds_reader_wrapper)(
         tavg3_3d_gas_files[k]) for k in range(len(tavg3_3d_gas_files)))
@@ -969,18 +974,20 @@ class readers(object):
         self.satellite_product_dir = product_dir
         self.satellite_product_name = product_name
 
-    def add_ctm_data(self, product_name: int, product_dir: Path):
+    def add_ctm_data(self, product_name: str, product_freq: str,  product_dir: Path):
         '''
             add CTM data
             Input:
                 product_name [str]: an string specifying the type of data to read:
                                 "GMI"
                                 "MINDS"
+                product_freq [str]: assign the frequency (monthly or daily)
                 product_dir  [Path]: a path object describing the path of CTM files
         '''
 
         self.ctm_product_dir = product_dir
         self.ctm_product = product_name
+        self.ctm_freq = product_freq
 
     def read_satellite_data(self, YYYYMM: str, read_ak=True, trop=False, num_job=1):
         '''
@@ -1014,16 +1021,12 @@ class readers(object):
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
              num_job [int]: the number of jobs for parallel computation
         '''
-        #YYYYMM2 = list(YYYYMM)
-        #if float(YYYYMM[0:4])>2020:
-        #   YYYYMM2[0:4]="2019"
-        #YYYYMM2 = ''.join(YYYYMM2)
         if self.ctm_product == 'GMI':
            self.ctm_data = GMI_reader(
                self.ctm_product_dir.as_posix(), str(YYYYMM), num_job=num_job)
         else:
             self.ctm_data = MINDS_reader(
-               self.ctm_product_dir.as_posix(), str(YYYYMM), num_job=num_job)
+               self.ctm_product_dir.as_posix(), str(YYYYMM), self.ctm_freq, num_job=num_job)
 
 
 # testing

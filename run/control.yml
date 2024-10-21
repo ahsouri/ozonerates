@@ -11,7 +11,13 @@ algorithm: DNN
 num_job: 12
 
 # set the path of CTM netcdf files (either relative or absolute)
-ctm_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/gmi/'
+ctm_dir: '/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/ozonerates/minds/'
+
+# model type
+ctm_type: MINDS
+
+# model frequency (monthly or daily)
+ctm_freq: monthly
 
 # the sensor name (OMI, TROPOMI)
 sensor: 'TROPOMI'
@@ -25,8 +31,8 @@ start_date: '2019-07'
 end_date:   '2019-07'
 
 # output folder for PDF reports
-output_pdf_dir: './report_PO3_test_dnn_model_three_africa.keras'
+output_pdf_dir: './report_PO3_dnn_LA'
 
 # output folder for NC diags
-output_nc_inputparam_dir: './diag_inputparam_tropomi_africa_update'
-output_nc_PO3_dir: './diag_PO3_test_dnn_model_three_africa.keras'
+output_nc_inputparam_dir: './diag_inputparam_tropomi_LA'
+output_nc_PO3_dir: './diag_PO3_tropomi_LA'

@@ -9,21 +9,26 @@ from numpy import dtype
 import numpy as np
 
 
-def ctmpost(satdata, ctmdata):
+def ctmpost(satdata, ctmdata, ctm_freq):
 
     print('Mapping CTM data into Sat grid...')
     # list the time in ctm_data
     time_ctm = []
+    time_ctm_hour_only = []
     time_ctm_datetype = []
     for ctm_granule in ctmdata:
         time_temp = ctm_granule.time
         for n in range(len(time_temp)):
-            time_temp2 = time_temp[n].year*10000 + time_temp[n].month*100 +\
+            time_temp1 = time_temp[n].year*10000 + time_temp[n].month*100 +\
                 time_temp[n].day + time_temp[n].hour/24.0 + \
                 time_temp[n].minute/60.0/24.0 + time_temp[n].second/3600.0/24.0
-            time_ctm.append(time_temp2)
+            time_temp2 = time_temp[n].hour/24.0 + \
+                time_temp[n].minute/60.0/24.0 + time_temp[n].second/3600.0/24.0
+            time_ctm_hour_only.append(time_temp2)
+            time_ctm.append(time_temp1)
         time_ctm_datetype.append(ctm_granule.time)
     time_ctm = np.array(time_ctm)
+    time_ctm_hour_only = np.array(time_ctm_hour_only)
     # define the triangulation
     points = np.zeros((np.size(ctmdata[0].latitude), 2))
     points[:, 0] = ctmdata[0].longitude.flatten()
@@ -40,11 +45,23 @@ def ctmpost(satdata, ctmdata):
         time_sat = time_sat_datetime.year*10000 + time_sat_datetime.month*100 +\
             time_sat_datetime.day + time_sat_datetime.hour/24.0 + time_sat_datetime.minute / \
             60.0/24.0 + time_sat_datetime.second/3600.0/24.0
-        # find the closest day
-        closest_index = np.argmin(np.abs(time_sat - time_ctm))
-        # find the closest hour (this only works for 3-hourly frequency)
-        closest_index_day = int(np.floor(closest_index/8.0))
-        closest_index_hour = int(closest_index % 8)
+        time_sat_hour_only = time_sat_datetime.hour/24.0 + time_sat_datetime.minute / \
+            60.0/24.0 + time_sat_datetime.second/3600.0/24.0
+        # if the frequency of the ctm data is daily, we need to find the right time and day:
+        if ctm_freq=='daily':
+           # find the closest day
+           closest_index = np.argmin(np.abs(time_sat - time_ctm))
+           # find the closest hour (this only works for 3-hourly frequency)
+           closest_index_day = int(np.floor(closest_index/8.0))
+           closest_index_hour = int(closest_index % 8)
+        # if the frequency of the ctm data is monthly, we will focus only on hours
+        if ctm_freq=='monthly':
+           # find the closest hour only
+            closest_index = np.argmin(
+                np.abs(time_sat_hour_only - time_ctm_hour_only))
+            # find the closest hour
+            closest_index_hour = int(closest_index)
+            closest_index_day = int(0)
 
         print("The closest GMI file used for the L2 at " + str(L2_granule.time) +
               " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))

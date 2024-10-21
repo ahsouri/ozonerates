@@ -40,7 +40,6 @@ class ctm_model:
     PBLH: np.ndarray
     ctmtype: str
 
-
 @dataclass
 class param_input:
     longitude: np.ndarray
