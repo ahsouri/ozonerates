@@ -80,5 +80,6 @@ class param_output:
     jno2_contrib: np.ndarray
     jo1d_contrib: np.ndarray
     h2o_contrib: np.ndarray
-    po3_err: np.ndarray
+    po3_err_rand: np.ndarray
+    po3_err_sys: np.ndarray
 

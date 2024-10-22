@@ -155,9 +155,9 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         # oceanic areas sometimes are negative
         surface_alt[surface_alt <= 0] = 0.0
         # extract the features: potential temp, HCHO_ppbv, NO2_ppbv, jNO2, FNR
-        mask_PBL = PL >= PBLH
-        mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
-        mask_PBL[mask_PBL != 1.0] = np.nan
+        #mask_PBL = PL >= PBLH
+        #mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
+        #mask_PBL[mask_PBL != 1.0] = np.nan
         #potential_temp = np.nanmean(T*((1000/PL)**(0.286))*mask_PBL, axis=0)
         NO2_ppbv = VCD_NO2*PBL_no2_factor
         HCHO_ppbv = VCD_FORM*PBL_form_factor

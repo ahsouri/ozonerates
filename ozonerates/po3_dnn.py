@@ -78,7 +78,8 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
     inputs["VCD_FORM"] = []
     inputs["PBL_no2_factor"] = []
     inputs["PBL_form_factor"] = []
-    inputs["PO3_err"] = []
+    inputs["PO3_err_sys"] = []
+    inputs["PO3_err_rand"] = []
 
     for single_date in _daterange(start_date, end_date):
 
@@ -144,10 +145,16 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
 
         NO2_ppbv = VCD_NO2*PBL_no2_factor
         HCHO_ppbv = VCD_FORM*PBL_form_factor
-        NO2_ppbv_err = np.sqrt((VCD_NO2_err*PBL_no2_factor)**2 +
-                               (0.01*VCD_NO2*PBL_no2_factor)**2 + (0.32*PBL_no2_factor)**2)
-        HCHO_ppbv_err = np.sqrt((VCD_HCHO_err*PBL_form_factor)**2 +
-                                (0.01*VCD_FORM*PBL_form_factor)**2 + (0.90*PBL_form_factor)**2)
+
+        #taking care of random and sys errors
+        NO2_ppbv_err_rand = VCD_NO2_err*PBL_no2_factor
+        HCHO_ppbv_err_rand = VCD_HCHO_err*PBL_form_factor
+
+        # the sys error consists of error in slope, error in offset, error in MINDS conversion factor                        
+        NO2_ppbv_err_sys = np.sqrt(((0.01*VCD_NO2*PBL_no2_factor)**2 + (0.32*PBL_no2_factor)**2 + \
+                                   (VCD_NO2*0.09)**2))
+        HCHO_ppbv_err_sys = np.sqrt(((0.01*VCD_FORM*PBL_form_factor)**2 + (0.90*PBL_form_factor)**2 +\
+                                    (VCD_FORM*0.08)**2))
 
         # extrating J values from a LUT
         Jvalue = sio.loadmat('../data/HybridJtables.mat')
@@ -225,9 +232,12 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         SHCHO[np.where((np.isnan(NO2_ppbv)) | (np.isinf(NO2_ppbv)) |
                        (np.isnan(HCHO_ppbv)) | (np.isinf(HCHO_ppbv)))] = np.nan
 
-        # error estimates
-        PO3_err2 = ((SNO2/NO2_ppbv)**2)*(NO2_ppbv_err**2) + \
-            ((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err**2)
+        # error estimates (random)
+        PO3_err2_rand = ((SNO2/NO2_ppbv)**2)*(NO2_ppbv_err_rand**2) + \
+            ((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err_rand**2)
+        # error estimates (sys)
+        PO3_err2_sys = ((SNO2/NO2_ppbv)**2)*(NO2_ppbv_err_sys**2) + \
+            ((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err_sys**2)
         # append inputs and PO3_estimates daily
         PO3_estimates.append(PO3)
         inputs["FNR"].append(np.abs(HCHO_ppbv/NO2_ppbv))
@@ -245,7 +255,8 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         inputs["VCD_FORM"].append(VCD_FORM)
         inputs["PBL_no2_factor"].append(PBL_no2_factor)
         inputs["PBL_form_factor"].append(PBL_form_factor)
-        inputs["PO3_err"].append(np.sqrt(PO3_err2))
+        inputs["PO3_err_sys"].append(np.sqrt(PO3_err2_sys))
+        inputs["PO3_err_rand"].append(np.sqrt(PO3_err2_rand))
 
     FNR = np.array(inputs["FNR"])
     H2O = np.array(inputs["H2O"])
@@ -263,8 +274,9 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
     PBL_no2_factor = np.array(inputs["PBL_no2_factor"])
     PBL_form_factor = np.array(inputs["PBL_form_factor"])
     PO3_estimates = np.array(PO3_estimates)
-    PO3_err = np.array(inputs["PO3_err"])
+    PO3_err_sys = np.array(inputs["PO3_err_sys"])
+    PO3_err_rand = np.array(inputs["PO3_err_rand"])
 
     output = param_output(latitude, longitude, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
-                          FNR, H2O, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, SH2O, PO3_err)
+                          FNR, H2O, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, SH2O, PO3_err_rand, PO3_err_sys)
     return output
