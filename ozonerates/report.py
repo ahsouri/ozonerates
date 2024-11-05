@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 from mpl_toolkits.basemap import Basemap
+from ozonerates.tools import error_averager
 
 
 def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
@@ -157,12 +158,14 @@ def report(data, fname: str, folder: str):
             fname + '.png', 'H2O contribution to PO3', 3, -1, 1)
     plotter(data.longitude, data.latitude, np.nanmean(data.PO3, axis=0).squeeze(), 'temp/N_po3_' +
             fname + '.png', 'PO3', 3, -1, 10)
-    plotter(data.longitude, data.latitude, np.sqrt(np.nanmean(data.po3_err_rand**2, axis=0)).squeeze(), 'temp/O_po3_err_rand' +
-            fname + '.png', 'PO3_err_rand', 3, 0, 10)
-    plotter(data.longitude, data.latitude, np.sqrt(np.nanmean(data.po3_err_sys**2, axis=0)).squeeze(), 'temp/P_po3_err_sys' +
-            fname + '.png', 'PO3_err_sys', 3, 0, 10)
-    plotter(data.longitude, data.latitude, np.sqrt(np.nanmean(data.po3_err_rand**2+data.po3_err_sys**2, axis=0)), 'temp/Q_po3_err_tot_' +
-            fname + '.png', 'PO3_err_tot', 2, 0, 10.0)
-    plotter(data.longitude, data.latitude, np.abs(100.0*np.sqrt(np.nanmean(data.po3_err_rand**2+data.po3_err_sys**2, axis=0)).squeeze()/np.nanmean(data.PO3, axis=0).squeeze()), 'temp/R_po3_err_tot_rel_' +
-            fname + '.png', 'PO3_err_tot_rel', 2, 0, 10.0)
+    po3_error_rand = error_averager(data.po3_err_rand**2)
+    po3_error_sys = np.sqrt(np.nanmean(data.po3_err_sys**2, axis=0)).squeeze()
+    plotter(data.longitude, data.latitude, po3_error_rand, 'temp/O_po3_err_rand' +
+            fname + '.png', 'PO3_err_rand', 3, 0, 3)
+    plotter(data.longitude, data.latitude, po3_error_sys, 'temp/P_po3_err_sys' +
+            fname + '.png', 'PO3_err_sys', 3, 0, 3)
+    plotter(data.longitude, data.latitude, np.sqrt(po3_error_rand**2+po3_error_sys**2), 'temp/Q_po3_err_tot_' +
+            fname + '.png', 'PO3_err_tot', 3, 0, 3.0)
+    plotter(data.longitude, data.latitude, np.abs(100.0*np.sqrt(po3_error_rand**2+po3_error_sys**2)/np.nanmean(data.PO3, axis=0).squeeze()), 'temp/R_po3_err_tot_rel_' +
+            fname + '.png', 'PO3_err_tot_rel', 2, 0, 50.0)
     topdf(fname, folder, 'PO3_report_' + fname + '.pdf')

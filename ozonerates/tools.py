@@ -325,3 +325,20 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
     data20[:, :, :] = data.h2o_contrib
 
     ncfile.close()
+
+
+def remove_non_numbers(lst):
+    return [x for x in lst if isinstance(x, (int, float))]
+
+def error_averager(error_X: np.array):
+    error_Y = np.zeros((np.shape(error_X)[1],np.shape(error_X)[2]))*np.nan
+    for i in range(0,np.shape(error_X)[1]):
+        for j in range(0,np.shape(error_X[2])):
+            temp = []
+            for k in range(0,np.shape(error_X)[0]):
+                temp.append(error_X[k,i,j])
+            temp = remove_non_numbers(temp)
+            temp = np.array(temp)
+            error_Y[i,j] = np.sum(temp)/(np.size(temp)**2)
+
+    error_Y = np.sqrt(error_Y)

@@ -36,8 +36,11 @@ def _boxfilter(size_kernel_x, size_kernel_y) -> np.array:
 
     return np.ones((int(size_kernel_x), int(size_kernel_y)))/(size_kernel_x*size_kernel_y)
 
+def _boxfilter2(size_kernel_x, size_kernel_y) -> np.array:
 
-def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict, grid_size: float, threshold: float, tri=None):
+    return np.ones((int(size_kernel_x), int(size_kernel_y)))/(size_kernel_x*size_kernel_y)**2
+
+def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict, grid_size: float, threshold: float, tri=None, error=False):
     '''
         upscaler function
         Input:
@@ -61,7 +64,10 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
             size_kernel_x = 1
         if size_kernel_y == 0:
             size_kernel_y = 1
-        kernel = _boxfilter(size_kernel_y, size_kernel_x)
+        if error: # which kernel should we use?
+            kernel = _boxfilter2(size_kernel_y, size_kernel_x)
+        else:
+            kernel = _boxfilter(size_kernel_y, size_kernel_x)
         Z = signal.convolve2d(Z, kernel, boundary='symm', mode='same')
         # define the triangulation
         points = np.zeros((np.size(X), 2))
@@ -174,7 +180,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     print('....................... error')
     _, _, uncertainty, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.uncertainty**2*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-        ctm_models_coordinate, grid_size, threshold_ctm)
+        ctm_models_coordinate, grid_size, threshold_ctm, error=True)
     uncertainty = np.sqrt(uncertainty)
 
     print('....................... SZA')
