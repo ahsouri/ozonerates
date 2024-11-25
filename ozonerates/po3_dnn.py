@@ -150,7 +150,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         NO2_ppbv_err_rand = VCD_NO2_err*PBL_no2_factor
         HCHO_ppbv_err_rand = VCD_HCHO_err*PBL_form_factor
 
-        # the sys error consists of error in slope, error in offset, error in MINDS conversion factor                        
+        # the sys error consists of error in slope, error in offset, error in MINDS conversion factor                 
         NO2_ppbv_err_sys = np.sqrt(((0.01*VCD_NO2*PBL_no2_factor)**2 + (0.32*PBL_no2_factor)**2 + \
                                    (VCD_NO2*0.09)**2))
         HCHO_ppbv_err_sys = np.sqrt(((0.01*VCD_FORM*PBL_form_factor)**2 + (0.90*PBL_form_factor)**2 +\
@@ -236,8 +236,9 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         PO3_err2_rand = ((SNO2/NO2_ppbv)**2)*(NO2_ppbv_err_rand**2) + \
             ((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err_rand**2)
         # error estimates (sys)
+        # add the estimator error here
         PO3_err2_sys = ((SNO2/NO2_ppbv)**2)*(NO2_ppbv_err_sys**2) + \
-            ((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err_sys**2)
+            ((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err_sys**2) + 0.78**2
         # append inputs and PO3_estimates daily
         PO3_estimates.append(PO3)
         inputs["FNR"].append(np.abs(HCHO_ppbv/NO2_ppbv))
