@@ -7,6 +7,7 @@ from netCDF4 import Dataset
 import os
 from numpy import dtype
 import numpy as np
+from scipy.io import loadmat
 
 
 def ctmpost(satdata, ctmdata, ctm_freq):
@@ -48,15 +49,15 @@ def ctmpost(satdata, ctmdata, ctm_freq):
         time_sat_hour_only = time_sat_datetime.hour/24.0 + time_sat_datetime.minute / \
             60.0/24.0 + time_sat_datetime.second/3600.0/24.0
         # if the frequency of the ctm data is daily, we need to find the right time and day:
-        if ctm_freq=='daily':
-           # find the closest day
-           closest_index = np.argmin(np.abs(time_sat - time_ctm))
-           # find the closest hour (this only works for 3-hourly frequency)
-           closest_index_day = int(np.floor(closest_index/8.0))
-           closest_index_hour = int(closest_index % 8)
+        if ctm_freq == 'daily':
+            # find the closest day
+            closest_index = np.argmin(np.abs(time_sat - time_ctm))
+            # find the closest hour (this only works for 3-hourly frequency)
+            closest_index_day = int(np.floor(closest_index/8.0))
+            closest_index_hour = int(closest_index % 8)
         # if the frequency of the ctm data is monthly, we will focus only on hours
-        if ctm_freq=='monthly':
-           # find the closest hour only
+        if ctm_freq == 'monthly':
+            # find the closest hour only
             closest_index = np.argmin(
                 np.abs(time_sat_hour_only - time_ctm_hour_only))
             # find the closest hour
@@ -66,16 +67,16 @@ def ctmpost(satdata, ctmdata, ctm_freq):
         print("The closest GMI file used for the L2 at " + str(L2_granule.time) +
               " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
 
-        #ctm_mid_pressure = ctmdata[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
-        #)
+        # ctm_mid_pressure = ctmdata[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
+        # )
         ctm_no2_profile_factor = ctmdata[closest_index_day].gas_profile_no2[closest_index_hour, :, :].squeeze(
         )
         ctm_hcho_profile_factor = ctmdata[closest_index_day].gas_profile_hcho[closest_index_hour, :, :].squeeze(
         )
-        #ctm_mid_T = ctmdata[closest_index_day].tempeature_mid[closest_index_hour, :, :, :].squeeze(
-        #)
-        #ctm_height = ctmdata[closest_index_day].height_mid[closest_index_hour, :, :, :].squeeze(
-        #)
+        # ctm_mid_T = ctmdata[closest_index_day].tempeature_mid[closest_index_hour, :, :, :].squeeze(
+        # )
+        # ctm_height = ctmdata[closest_index_day].height_mid[closest_index_hour, :, :, :].squeeze(
+        # )
         ctm_O3col = ctmdata[closest_index_day].O3col[closest_index_hour, :, :].squeeze(
         )
         ctm_PBLH = ctmdata[closest_index_day].PBLH[closest_index_hour, :, :].squeeze(
@@ -83,7 +84,7 @@ def ctmpost(satdata, ctmdata, ctm_freq):
         ctm_H2O = ctmdata[closest_index_day].H2O[closest_index_hour, :, :].squeeze(
         )
 
-        #ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
+        # ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
         #                                 np.shape(L2_granule.longitude_center)[0], np.shape(
         #                                     L2_granule.longitude_center)[1],
         #                                 ))*np.nan
@@ -112,7 +113,7 @@ def ctmpost(satdata, ctmdata, ctm_freq):
         grid[1, :, :] = sat_coordinate["Latitude"]
         xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
         dists, _ = tree.query(xi)
-        #for z in range(0, np.shape(ctm_mid_pressure)[0]):
+        # for z in range(0, np.shape(ctm_mid_pressure)[0]):
         #    ctm_mid_pressure_new[z, :, :] = _interpolosis(tri, ctm_mid_pressure[z, :, :].squeeze(), sat_coordinate["Longitude"],
         #                                                  sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
         #    ctm_mid_T_new[z, :, :] = _interpolosis(tri, ctm_mid_T[z, :, :].squeeze(), sat_coordinate["Longitude"],
@@ -124,7 +125,7 @@ def ctmpost(satdata, ctmdata, ctm_freq):
         ctm_PBLH_new[:, :] = _interpolosis(tri, ctm_PBLH, sat_coordinate["Longitude"],
                                            sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
         ctm_H2O_new[:, :] = _interpolosis(tri, ctm_H2O, sat_coordinate["Longitude"],
-                                           sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
+                                          sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
         ctm_no2_profile_f_new[:, :] = _interpolosis(tri, ctm_no2_profile_factor, sat_coordinate["Longitude"],
                                                     sat_coordinate["Latitude"], 1, dists, 0.2)*L2_granule.quality_flag
         ctm_hcho_profile_f_new[:, :] = _interpolosis(tri, ctm_hcho_profile_factor, sat_coordinate["Longitude"],
@@ -177,15 +178,15 @@ def write_to_nc(data, output_file, output_folder='diag'):
         'gas_pbl_factor_hcho', dtype('float32').char, ('x', 'y'))
     data5[:, :] = data.gas_profile_hcho
 
-    #data6 = ncfile.createVariable(
+    # data6 = ncfile.createVariable(
     #    'pressure_mid', dtype('float32').char, ('z', 'x', 'y'))
     #data6[:, :, :] = data.pressure_mid
 
-    #data7 = ncfile.createVariable(
+    # data7 = ncfile.createVariable(
     #    'temperature_mid', dtype('float32').char, ('z', 'x', 'y'))
     #data7[:, :, :] = data.tempeature_mid
 
-    #data8 = ncfile.createVariable(
+    # data8 = ncfile.createVariable(
     #    'height_mid', dtype('float32').char, ('z', 'x', 'y'))
     #data8[:, :, :] = data.height_mid
 
@@ -227,6 +228,7 @@ def write_to_nc(data, output_file, output_folder='diag'):
 
     ncfile.close()
 
+
 def write_to_nc_product(data, output_file, output_folder='diag'):
     ''' 
     Write the final results to a netcdf
@@ -252,12 +254,12 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
         'longitude', dtype('float32').char, ('x', 'y'))
     data2[:, :] = data.longitude
 
-    #data3 = ncfile.createVariable(
+    # data3 = ncfile.createVariable(
     #    'time', 'S1', ('t'))
     #data3 = data.time.strftime("%Y-%m-%d %H:%M:%S")
 
     data4 = ncfile.createVariable(
-        'vcd_no2', dtype('float32').char, ('t','x', 'y'))
+        'vcd_no2', dtype('float32').char, ('t', 'x', 'y'))
     data4[:, :] = data.vcd_no2
 
     data5 = ncfile.createVariable(
@@ -330,16 +332,47 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
 def remove_non_numbers(lst):
     return [x for x in lst if isinstance(x, (int, float))]
 
+
 def error_averager(error_X: np.array):
-    error_Y = np.zeros((np.shape(error_X)[1],np.shape(error_X)[2]))*np.nan
-    for i in range(0,np.shape(error_X)[1]):
-        for j in range(0,np.shape(error_X)[2]):
+    error_Y = np.zeros((np.shape(error_X)[1], np.shape(error_X)[2]))*np.nan
+    for i in range(0, np.shape(error_X)[1]):
+        for j in range(0, np.shape(error_X)[2]):
             temp = []
-            for k in range(0,np.shape(error_X)[0]):
-                temp.append(error_X[k,i,j])
+            for k in range(0, np.shape(error_X)[0]):
+                temp.append(error_X[k, i, j])
             temp = np.array(temp)
             temp[np.isinf(temp)] = np.nan
             temp2 = temp[~np.isnan(temp)]
-            error_Y[i,j] = np.sum(temp2)/(np.size(temp2)**2)
+            error_Y[i, j] = np.sum(temp2)/(np.size(temp2)**2)
 
     error_Y = np.sqrt(error_Y)
+
+
+def tropomi_albedo(uv: bool, lat, lon, month: int):
+    tropomi_data = loadmat('../data/tropomi_ler_uv_vis.mat')
+    lat_tropomi = tropomi_data["lat"]
+    lon_tropomi = tropomi_data["lon"]
+    if uv:
+        tropomi_surface_albedo = tropomi_data["c0_uv"][:, :,
+                                                       month-1]+tropomi_data["minimum_LET_uv"][:, :, month-1]
+    else:
+        tropomi_surface_albedo = tropomi_data["c0_vis"][:, :,
+                                                        month-1]+tropomi_data["minimum_LET_vis"][:, :, month-1]
+
+    tropomi_surface_albedo = np.squeeze(tropomi_surface_albedo)
+    # define the triangulation
+    points = np.zeros((np.size(lon_tropomi), 2))
+    points[:, 0] = lon_tropomi.flatten()
+    points[:, 1] = lat_tropomi.flatten()
+    tri = Delaunay(points)
+    # calculate distance to remove too-far estimates
+    tree = cKDTree(points)
+    grid = np.zeros((2, np.shape(lon)[
+        0], np.shape(lon)[1]))
+    grid[0, :, :] = lon
+    grid[1, :, :] = lat
+    xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
+    dists, _ = tree.query(xi)
+    albedo = _interpolosis(tri, tropomi_surface_albedo, lon,
+                           lat, 1, dists, 0.2)
+    return albedo

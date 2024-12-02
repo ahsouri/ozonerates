@@ -1,5 +1,5 @@
 from ozonerates.reader import readers
-from ozonerates.tools import  write_to_nc, ctmpost, write_to_nc_product
+from ozonerates.tools import  write_to_nc, ctmpost, write_to_nc_product, tropomi_albedo
 from ozonerates.po3_lasso import PO3est_empirical
 from ozonerates.po3_dnn import PO3est_DNN
 from ozonerates.report import report
@@ -32,6 +32,7 @@ class ozonerates(object):
         for fno2 in self.o3paramno2:
             time_no2 = fno2.time
             time_no2 = time_no2.strftime("%Y%m%d_%H%M%S")
+            fno2.surface_albedo = tropomi_albedo(False,fno2.latitude,fno2.longitude,int(YYYYMM[4:]))
             write_to_nc(fno2, "PO3inputs_NO2_" +
                         str(time_no2), output_folder)
         self.o3paramno2 = []
@@ -49,6 +50,7 @@ class ozonerates(object):
         for fhcho in self.o3paramhcho:
             time_hcho = fhcho.time
             time_hcho = time_hcho.strftime("%Y%m%d_%H%M%S")
+            fhcho.surface_albedo = tropomi_albedo(True,fhcho.latitude,fhcho.longitude,int(YYYYMM[4:]))
             write_to_nc(fhcho, "PO3inputs_FORM_" +
                         str(time_hcho), output_folder)
 
