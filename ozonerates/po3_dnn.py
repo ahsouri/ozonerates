@@ -96,6 +96,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         #PL = []
         #T = []
         surface_albedo_no2 = []
+        surface_albedo_hcho = []
         O3col = []
         SZA = []
         surface_alt = []
@@ -121,6 +122,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         # reading FORM files daily
         for f in hcho_files:
             VCD_FORM.append(_read_nc(f, 'VCD'))
+            surface_albedo_hcho.append(_read_nc(f, 'surface_albedo'))
             PBL_form_factor.append(_read_nc(f, 'gas_pbl_factor_hcho'))
             VCD_HCHO_err.append(_read_nc(f, 'VCD_err'))
 
@@ -134,6 +136,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         #T = np.nanmean(np.array(T), axis=0)
         H2O = np.nanmean(np.array(H2O), axis=0)
         surface_albedo_no2 = np.nanmean(np.array(surface_albedo_no2), axis=0)
+        surface_albedo_hcho = np.nanmean(np.array(surface_albedo_hcho), axis=0)
         O3col = np.nanmean(np.array(O3col), axis=0)
         SZA = np.nanmean(np.array(SZA), axis=0)
         surface_alt = np.nanmean(np.array(surface_alt), axis=0)
@@ -176,8 +179,9 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
                           O3col.flatten(), surface_alt.flatten()),
                      method="linear", bounds_error=False, fill_value=np.nan)
         J4 = np.reshape(J4, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        # for J1, we use surface HCHO albedo because it's located at a smaller wavelength
         J1 = interpn((SZAhybrid.flatten(), ALBhybrid.flatten(), O3Chybrid.flatten(), ALThybrid.flatten()),
-                     J1, (SZA.flatten(), surface_albedo_no2.flatten(),
+                     J1, (SZA.flatten(), surface_albedo_hcho.flatten(),
                           O3col.flatten(), surface_alt.flatten()),
                      method="linear", bounds_error=False, fill_value=np.nan)
         J1 = np.reshape(J1, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
