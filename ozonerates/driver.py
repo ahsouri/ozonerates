@@ -4,6 +4,9 @@ from ozonerates.po3_lasso import PO3est_empirical
 from ozonerates.po3_dnn import PO3est_DNN
 from ozonerates.report import report
 from pathlib import Path
+from scipy.spatial import Delaunay
+from scipy.io import loadmat
+import numpy as np
 
 class ozonerates(object):
 
@@ -28,11 +31,20 @@ class ozonerates(object):
         self.o3paramno2 = ctmpost(self.satno2,self.ctmdata,ctm_freq)
         self.satno2 = []
         reader_obj.sat_data = []
+        # this part is for speeding up the surface albedo tropomi interpolation
+        tropomi_data = loadmat('../data/tropomi_ler_uv_vis.mat')
+        lat_tropomi = tropomi_data["lat"]
+        lon_tropomi = tropomi_data["lon"]
+        # define the triangulation
+        points = np.zeros((np.size(lon_tropomi), 2))
+        points[:, 0] = lon_tropomi.flatten()
+        points[:, 1] = lat_tropomi.flatten()
+        tri = Delaunay(points)
         # saving as netcdf files
         for fno2 in self.o3paramno2:
             time_no2 = fno2.time
             time_no2 = time_no2.strftime("%Y%m%d_%H%M%S")
-            fno2.surface_albedo = tropomi_albedo(False,fno2.latitude,fno2.longitude,int(YYYYMM[4:]))
+            fno2.surface_albedo = tropomi_albedo(tri,False,fno2.latitude,fno2.longitude,int(YYYYMM[4:]))
             write_to_nc(fno2, "PO3inputs_NO2_" +
                         str(time_no2), output_folder)
         self.o3paramno2 = []
@@ -50,7 +62,7 @@ class ozonerates(object):
         for fhcho in self.o3paramhcho:
             time_hcho = fhcho.time
             time_hcho = time_hcho.strftime("%Y%m%d_%H%M%S")
-            fhcho.surface_albedo = tropomi_albedo(True,fhcho.latitude,fhcho.longitude,int(YYYYMM[4:]))
+            fhcho.surface_albedo = tropomi_albedo(tri,True,fhcho.latitude,fhcho.longitude,int(YYYYMM[4:]))
             write_to_nc(fhcho, "PO3inputs_FORM_" +
                         str(time_hcho), output_folder)
 

@@ -346,25 +346,25 @@ def error_averager(error_X: np.array):
             error_Y[i, j] = np.sum(temp2)/(np.size(temp2)**2)
 
     error_Y = np.sqrt(error_Y)
+    return error_Y
 
-
-def tropomi_albedo(uv: bool, lat, lon, month: int):
+def tropomi_albedo(tri, uv: bool, lat, lon, month: int):
     tropomi_data = loadmat('../data/tropomi_ler_uv_vis.mat')
     lat_tropomi = tropomi_data["lat"]
     lon_tropomi = tropomi_data["lon"]
     if uv:
         tropomi_surface_albedo = tropomi_data["c0_uv"][:, :,
-                                                       month-1]+tropomi_data["minimum_LET_uv"][:, :, month-1]
+                                                       month-1]+tropomi_data["minimum_LER_uv"][:, :, month-1]
     else:
         tropomi_surface_albedo = tropomi_data["c0_vis"][:, :,
-                                                        month-1]+tropomi_data["minimum_LET_vis"][:, :, month-1]
+                                                        month-1]+tropomi_data["minimum_LER_vis"][:, :, month-1]
 
     tropomi_surface_albedo = np.squeeze(tropomi_surface_albedo)
     # define the triangulation
     points = np.zeros((np.size(lon_tropomi), 2))
     points[:, 0] = lon_tropomi.flatten()
     points[:, 1] = lat_tropomi.flatten()
-    tri = Delaunay(points)
+    #tri = Delaunay(points)
     # calculate distance to remove too-far estimates
     tree = cKDTree(points)
     grid = np.zeros((2, np.shape(lon)[
