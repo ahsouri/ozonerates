@@ -64,6 +64,7 @@ class param_input:
 class param_output:
     latitude: np.ndarray
     longitude: np.ndarray
+    time: list
     vcd_no2: np.ndarray
     vcd_no2_factor: np.ndarray
     vcd_hcho: np.ndarray

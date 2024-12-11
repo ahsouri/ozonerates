@@ -80,7 +80,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
     inputs["PBL_form_factor"] = []
     inputs["PO3_err_sys"] = []
     inputs["PO3_err_rand"] = []
-
+    time_processed = []
     for single_date in _daterange(start_date, end_date):
 
         no2_files = sorted((glob.glob(no2_path + "/*_NO2_" + str(single_date.year) + f"{single_date.month:02}"
@@ -262,6 +262,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         inputs["PBL_form_factor"].append(PBL_form_factor)
         inputs["PO3_err_sys"].append(np.sqrt(PO3_err2_sys))
         inputs["PO3_err_rand"].append(np.sqrt(PO3_err2_rand))
+        time_processed.append(single_date)
 
     FNR = np.array(inputs["FNR"])
     H2O = np.array(inputs["H2O"])
@@ -282,6 +283,6 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
     PO3_err_sys = np.array(inputs["PO3_err_sys"])
     PO3_err_rand = np.array(inputs["PO3_err_rand"])
 
-    output = param_output(latitude, longitude, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
+    output = param_output(latitude, longitude, time_processed, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
                           FNR, H2O, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, SH2O, PO3_err_rand, PO3_err_sys)
     return output

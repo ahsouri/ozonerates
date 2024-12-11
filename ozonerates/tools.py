@@ -3,11 +3,32 @@ from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 from scipy.spatial import cKDTree
 from ozonerates.interpolator import _interpolosis
 from ozonerates.config import param_input
+from ozonerates.writer import ozonerate_netcdf_writer
 from netCDF4 import Dataset
 import os
+from datetime import datetime
 from numpy import dtype
 import numpy as np
 from scipy.io import loadmat
+import warnings
+from cftime import date2num
+from time import asctime, gmtime, strftime
+
+warnings.filterwarnings('ignore')
+
+
+def log_message(msg, error=False):
+    '''Print message with time stamp
+    ARGS:
+        msg(string): Message to be printed
+        error(bool,optional): If true raise Error to calling program
+    '''
+    if error:
+        m = '{0}: ERROR!!! {1}'.format(asctime(), msg)
+        exit(m)
+    else:
+        m = '{0}: {1}'.format(asctime(), msg)
+        print(m)
 
 
 def ctmpost(satdata, ctmdata, ctm_freq):
@@ -230,6 +251,286 @@ def write_to_nc(data, output_file, output_folder='diag'):
 
 
 def write_to_nc_product(data, output_file, output_folder='diag'):
+
+    # Define filename
+    filename = output_file
+    file_full_address = output_folder + '/' + filename
+    # Define dictionary of dimensions in the file
+    dimensions_dict = {
+        'latitude': np.shape(data.vcd_no2)[2],
+        'longitude': np.shape(data.vcd_no2)[1],
+        'time': len(data.time)
+    }
+    # Define dictionary of global attributes
+    global_attributes = {
+        'geospatial_lon_min': np.min(np.ndarray.flatten(data.longitude)),
+        'geospatial_lon_max':  np.max(np.ndarray.flatten(data.longitude)),
+        'geospatial_lat_min':  np.min(np.ndarray.flatten(data.latitude)),
+        'geospatial_lat_max':   np.max(np.ndarray.flatten(data.latitude)),
+        'history': '{}: file created'.format(strftime('%Y-%m-%dT%H:%M:%SZ', gmtime())),
+        'product_type': 'PO3',
+        'processing_level': '4',
+        'processing_version': 1.0,
+        'production_date_time': strftime('%Y-%m-%dT%H:%M:%SZ', gmtime()),
+        'local_granule_id': filename,
+        'version_id': 1,
+        'shortname': 'OZONERATE_PO3',
+        'ozonerates_software_version': 1,
+        'time_reference': '1980-01-06T00:00:00Z',
+        'time_coverage_start': '2010-01-01T00:00:00Z',
+        'time_coverage_end': '2024-12-01T23:59:59Z',
+        'time_coverage_start_since_epoch': date2num(min(data.time), units='seconds since 1980-01-06T00:00:00Z', calendar='gregorian'),
+        'time_coverage_end_since_epoch': date2num(max(data.time), units='seconds since 1980-01-06T00:00:00Z', calendar='gregorian'),
+        'project': "Long-term Maps of Satellite-Based Ozone Production Rates using OMI, OMPS, and TROPOMI HCHO and NO2 Observations via Empirical and Machine Learning Methods: Insights from NASA's Air Quality Campaigns",
+        'summary': 'Global ozone production rates derived from satellite observations and chemical transport models, Souri et al., 2025 (https://egusphere.copernicus.org/preprints/2024/egusphere-2024-1947/)',
+        'spatial_coverage': 'Global',
+        'source': 'OMI',
+        'keywords': 'GEOGRAPHIC REGION>GLOBAL, EARTH SCIENCE>ATMOSPHERE>AIR QUALITY> TROPOSPHERIC OZONE, EARTH SCIENCE>ATMOSPHERE>ATMOSPHERIC CHEMISTRY>OXYGEN COMPOUNDS>ATMOSPHERIC OZONE',
+        'funding': 'NASA Aura-ACMAP 2022 80NSSC23K1250',
+        'title': 'Global Ozone Production Rates',
+        'institution': 'NASA GSFC (614)/GETARII(MSU)/SAO',
+        'creator': 'Amir H. Souri (PI), Gonzalo Gonzalez Abad (Co-I)',
+        'creator_url': 'https://www.ozonerates.space',
+        'Conventions': "CF-1.6, ACDD-1.3"
+    }
+    try:
+        with ozonerate_netcdf_writer(file_full_address) as writer:
+            log_message('writing the final product ...')
+            # Create dimensions
+            for name, length in dimensions_dict.items():
+                writer.create_dimension(name, length)
+            # Create global attributes
+            writer.create_global_attributes(global_attributes)
+            # Create latitude variable
+            attributes = {
+                'standard_name': 'latitude',
+                'long_name': 'latitude',
+                'comment': 'latitude at grid box center',
+                'units': 'degrees_north',
+                'valid_min': -90.0,
+                'valid_max': 90.0
+            }
+            writer.create_variable('latitude', datatype=np.float32, dimensions=('longitude', 'latitude'),
+                                   values=data.latitude, attributes=attributes,
+                                   least_significant_digig=2)
+            # Create longitude variable
+            attributes = {
+                'standard_name': 'longitude',
+                'long_name': 'longitude',
+                'comment': 'longitude at grid box center',
+                'units': 'degrees_east',
+                'valid_min': -180.0,
+                'valid_max': 180.0
+            }
+            writer.create_variable('longitude', datatype=np.float32, dimensions=('longitude', 'latitude'),
+                                   values=data.longitude, attributes=attributes,
+                                   least_significant_digig=2)
+            # Create time variable
+            attributes = {
+                'standard_name': 'time',
+                'long_name': 'time',
+                'comment': 'time at the middle of the time range considered in the calculation of the PO3 map',
+                'time_range': 'year',
+                'comment': 'gregorian',
+                'units': 'seconds since 1980-01-06T00:00:00Z'
+            }
+            writer.create_variable('time', datatype=np.float64, dimensions=('time'),
+                                   values=date2num(
+                                       data.time, units='seconds since 1980-01-06T00:00:00Z', calendar='gregorian'),
+                                   attributes=attributes,
+                                   least_significant_digig=1)
+            # Create ozone production variable
+            attributes = {
+                'standard_name': 'PO3',
+                'long_name': 'PO3',
+                'comment': 'net ozone production rates within planetary boundary layer derived from satellite observations',
+                'units': 'ppbv hr-1',
+                'valid_min': -100,
+                'valid_max':  100
+            }
+            writer.create_variable('PO3', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.PO3, attributes=attributes,
+                                   least_significant_digig=2)
+            # Create NO2 contribution to ozone production variable
+            attributes = {
+                'standard_name': 'PO3_NO2',
+                'long_name': 'PO3_NO2',
+                'comment': 'NO2 contribution to ozone production rates within planetary boundary layer derived from satellite observations',
+                'units': 'ppbv hr-1',
+                'valid_min': -100,
+                'valid_max':  100
+            }
+            writer.create_variable('PO3_NO2', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.no2_vmr_contrib, attributes=attributes,
+                                   least_significant_digig=2)
+            # Create HCHO contribution to ozone production variable
+            attributes = {
+                'standard_name': 'PO3_HCHO',
+                'long_name': 'PO3_HCHO',
+                'comment': 'HCHO contribution to ozone production rates within planetary boundary layer derived from satellite observations',
+                'units': 'ppbv hr-1',
+                'valid_min': -100,
+                'valid_max':  100
+            }
+            writer.create_variable('PO3_HCHO', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.hcho_vmr_contrib, attributes=attributes,
+                                   least_significant_digig=2)
+            '''
+            # Create other contributions to ozone production variable
+            attributes = {
+                'standard_name': 'PO3_other',
+                'long_name': 'PO3_other',
+                'comment': 'other net contributions to ozone production rates within planetary boundary layer derived from satellite observations',
+                'units': 'ppbv hr-1',
+                'valid_min': -100,
+                'valid_max':  100
+            }
+            writer.create_variable('PO3_ohter',datatype=np.float32,dimensions=('longitude','latitude','time'),
+                                   values=np.random.random(test_shape)*100.0,attributes=attributes,
+                                   least_significant_digig=2)
+            '''
+            # Create ozone production random error variable
+            attributes = {
+                'standard_name': 'PO3_error_rand',
+                'long_name': 'PO3_error_rand',
+                'comment': 'satellite random error contributions to ozone production rates error',
+                'units': 'ppbv hr-1',
+                'valid_min': -100,
+                'valid_max':  100
+            }
+            writer.create_variable('PO3_error_rand', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.po3_err_rand, attributes=attributes,
+                                   least_significant_digig=2)
+            # Create ozone production systematic error variable
+            attributes = {
+                'standard_name': 'PO3_error_sys',
+                'long_name': 'PO3_error_sys',
+                'comment': 'model conversion + bias correction + ozone rate model RMSE error contributions to ozone production rate error',
+                'units': 'ppbv hr-1',
+                'valid_min': -100,
+                'valid_max':  100
+            }
+            writer.create_variable('PO3_error_sys', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.po3_err_sys, attributes=attributes,
+                                   least_significant_digig=2)
+            # Create NO2 VCD variable
+            attributes = {
+                'standard_name': 'NO2_VCD',
+                'long_name': 'NO2_VCD',
+                'comment': 'bias corrected nitrogen dioxide satellite vertical column density',
+                'units': 'molecules cm-2',
+                'valid_min': -1e18,
+                'valid_max':  1e18
+            }
+            writer.create_variable('NO2_VCD', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.vcd_no2*1e15, attributes=attributes,
+                                   least_significant_digig=2)
+            # Create HCHO VCD variable
+            attributes = {
+                'standard_name': 'HCHO_VCD',
+                'long_name': 'HCHO_VCD',
+                'comment': 'bias corrected formaldehyde satellite vertical column density',
+                'units': 'molecules cm-2',
+                'valid_min': -1e18,
+                'valid_max':  1e18
+            }
+            writer.create_variable('HCHO_VCD', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.vcd_hcho*1e15, attributes=attributes,
+                                   least_significant_digig=2)
+            # Create NO2 ppbv within PBL variable
+            attributes = {
+                'standard_name': 'NO2_ppbv',
+                'long_name': 'NO2_ppbv',
+                'comment': 'nitrogen dioxide volume mixing ration in the planetary boundary layer derived from satellite vertical column density and MINDS profiles',
+                'units': 'ppbv',
+                'valid_max': 100,
+                'valid_min': 0
+            }
+            writer.create_variable('NO2_ppbv', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.no2_vmr, attributes=attributes,
+                                   least_significant_digig=2)
+            # Create HCHO ppbv within PBL variable
+            attributes = {
+                'standard_name': 'HCHO_ppbv',
+                'long_name': 'HCHO_ppbv',
+                'comment': 'formaldehyde volume mixing ration in the planetary boundary layer derived from satellite vertical column density and MINDS profiles',
+                'units': 'ppbv',
+                'valid_max': 100,
+                'valid_min': 0
+            }
+            writer.create_variable('HCHO_ppbv', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.hcho_vmr, attributes=attributes,
+                                   least_significant_digig=2)
+            '''
+            # Create H2O concentration within PBL variable
+            attributes = {
+                'standard_name': 'H2O',
+                'long_name': 'H2O',
+                'comment': 'water vapor concentration in the planetary boundary layer',
+                'units': 'molecules m-3',
+                'valid_min': 1e20,
+                'valid_max': 0
+            }
+            writer.create_variable('H2O',datatype=np.float32,dimensions=('longitude','latitude','time'),
+                                   values=np.random.random(test_shape)*1e19,attributes=attributes,
+                                   least_significant_digig=2)
+            '''
+            # Create JNO2 variable
+            attributes = {
+                'standard_name': 'JNO2',
+                'long_name': 'JNO2',
+                'comment': 'photolysis rates for jNO2 (NO2+hv)',
+                'units': '1/s',
+                'valid_min': 0,
+                'valid_max': 1
+            }
+            writer.create_variable('JNO2', datatype=np.float32, dimensions=('longitude', 'latitude', 'time'),
+                                   values=data.jno2*1e-3, attributes=attributes,
+                                   least_significant_digig=8)
+            # Create JO1D variable
+            attributes = {
+                'standard_name': 'JO1D',
+                'long_name': 'JO1D',
+                'comment': 'rphotolysis rates for jO1D (O3+hv)',
+                'units': '1/s',
+                'valid_min': 0,
+                'valid_max': 1
+            }
+            writer.create_variable('JO1D', datatype=np.float32, dimensions=('longitude', 'latitude', 'time'),
+                                   values=data.jo1d*1e-6, attributes=attributes,
+                                   least_significant_digig=8)
+            '''
+            # Create SZA variable
+            attributes = {
+                'standard_name': 'SZA',
+                'long_name': 'solaz_zenith_angle',
+                'comment': 'solar zenith angle',
+                'units': 'degrees',
+                'valid_min':  90,
+                'valid_max':   0
+            }
+            writer.create_variable('SZA',datatype=np.float32,dimensions=('longitude','latitude','time'),
+                                   values=np.random.random(test_shape)*90,attributes=attributes,
+                                   least_significant_digig=2)
+            # Create surface albedo variable
+            attributes = {
+                'standard_name': 'surface_albedo',
+                'long_name': 'surface_albedo',
+                'comment': 'surface_albedo',
+                'units': 'unitless',
+                'valid_min': 1,
+                'valid_max': 0
+            }
+            writer.create_variable('surface_albedo',datatype=np.float32,dimensions=('longitude','latitude','time'),
+                                   values=np.random.random(test_shape),attributes=attributes,
+                                   least_significant_digig=2)
+            '''
+
+    except Exception as e:
+        log_message(e, error=True)
+
+
+def write_to_nc_product_old(data, output_file, output_folder='diag'):
     ''' 
     Write the final results to a netcdf
     ARGS:
@@ -260,11 +561,11 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
 
     data4 = ncfile.createVariable(
         'vcd_no2', dtype('float32').char, ('t', 'x', 'y'))
-    data4[:, :] = data.vcd_no2
+    data4[:, :, :] = data.vcd_no2
 
     data5 = ncfile.createVariable(
         'vcd_no2_factor', dtype('float32').char, ('t', 'x', 'y'))
-    data5[:, :] = data.vcd_no2_factor
+    data5[:, :, :] = data.vcd_no2_factor
 
     data6 = ncfile.createVariable(
         'vcd_hcho', dtype('float32').char, ('t', 'x', 'y'))
@@ -347,6 +648,7 @@ def error_averager(error_X: np.array):
 
     error_Y = np.sqrt(error_Y)
     return error_Y
+
 
 def tropomi_albedo(tri, uv: bool, lat, lon, month: int):
     tropomi_data = loadmat('../data/tropomi_ler_uv_vis.mat')
