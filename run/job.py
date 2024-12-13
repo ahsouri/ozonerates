@@ -2,6 +2,7 @@ import yaml
 from ozonerates import ozonerates
 from pathlib import Path
 import sys
+from time import asctime, gmtime, strftime
 
 # Read the control file
 with open('./control.yml', 'r') as stream:
@@ -52,4 +53,8 @@ else:
            '-01', str(year+1) + '-01' + '-01', num_job=num_job)
 
 ozonerates_obj.reporting("PO3_estimates_" + str(year) + f"{month:02}",folder=output_pdf_dir)
-ozonerates_obj.writenc("PO3_estimates_" + str(year) + f"{month:02}",folder=output_nc_po3_dir)
+if sensor == 'OMI':
+   output_nc_name = "PO3_Global__OMI_____" + str(year) + f"{month:02}" + "_" + strftime('%Y-%m-%dT%H:%M:%SZ', gmtime()) + ".nc"
+else:
+   output_nc_name = "PO3_Global__TROPOMI_" + str(year) + f"{month:02}" + "_" + strftime('%Y-%m-%dT%H:%M:%SZ', gmtime()) + ".nc"
+ozonerates_obj.writenc(output_nc_name,folder=output_nc_po3_dir)
