@@ -40,6 +40,7 @@ class ctm_model:
     PBLH: np.ndarray
     ctmtype: str
 
+
 @dataclass
 class param_input:
     longitude: np.ndarray
@@ -59,6 +60,7 @@ class param_input:
     surface_albedo: np.ndarray
     SZA: np.ndarray
     surface_alt: np.ndarray
+
 
 @dataclass
 class param_output:
@@ -83,4 +85,3 @@ class param_output:
     h2o_contrib: np.ndarray
     po3_err_rand: np.ndarray
     po3_err_sys: np.ndarray
-

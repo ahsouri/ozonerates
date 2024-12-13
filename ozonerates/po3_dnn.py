@@ -1,4 +1,3 @@
-import tensorflow as tf
 import numpy as np
 from tensorflow import keras
 import warnings
@@ -32,13 +31,7 @@ def _read_nc(filename, var):
 def predictor(dnn_model, J1, J4, H2O, NO2_ppbv, HCHO_ppbv):
 
     p = pickle.load(open('../data/normalization_weights.pkl', 'rb'))
-    # normalization_factors = [0.1,1e-4,1.0,1e2,1e1] # jNO2, jO1D, H2O, NO2, HCHO
     inputs_dnn = np.zeros((np.size(J1), 5))
-    #inputs_dnn[:,0] = J4.flatten()/normalization_factors[0]
-    #inputs_dnn[:,1] = J1.flatten()/normalization_factors[1]
-    #inputs_dnn[:,2] = H2O.flatten()
-    #inputs_dnn[:,3] = NO2_ppbv.flatten()/normalization_factors[3]
-    #inputs_dnn[:,4] = HCHO_ppbv.flatten()/normalization_factors[4]
 
     inputs_dnn[:, 0] = (J4.flatten()-p[0]["jNO2"])/p[1]["jNO2"]
     inputs_dnn[:, 1] = (J1.flatten()-p[0]["jO1D"])/p[1]["jO1D"]
@@ -62,24 +55,12 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         enddate[5:7]), int(enddate[8:10]))
 
     PO3_estimates = []
-    inputs = {}
-    inputs["H2O"] = []
-    inputs["FNR"] = []
-    inputs["J1"] = []
-    inputs["J4"] = []
-    inputs["HCHO_ppbv"] = []
-    inputs["NO2_ppbv"] = []
-    inputs["SJ4"] = []
-    inputs["SJ1"] = []
-    inputs["SHCHO"] = []
-    inputs["SNO2"] = []
-    inputs["SH2O"] = []
-    inputs["VCD_NO2"] = []
-    inputs["VCD_FORM"] = []
-    inputs["PBL_no2_factor"] = []
-    inputs["PBL_form_factor"] = []
-    inputs["PO3_err_sys"] = []
-    inputs["PO3_err_rand"] = []
+    inputs = {
+        "H2O": [], "FNR": [], "J1": [], "J4": [], "HCHO_ppbv": [], "NO2_ppbv": [],
+        "SJ4": [], "SJ1": [], "SHCHO": [], "SNO2": [], "SH2O": [],
+        "VCD_NO2": [], "VCD_FORM": [], "PBL_no2_factor": [], "PBL_form_factor": [],
+        "PO3_err_sys": [], "PO3_err_rand": []
+    }
     time_processed = []
     for single_date in _daterange(start_date, end_date):
 
@@ -88,21 +69,13 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         hcho_files = sorted((glob.glob(hcho_path + "/*_FORM_" + str(single_date.year) + f"{single_date.month:02}"
                                        + f"{single_date.day:02}" + "*.nc")))
         # we make a list of inputs to append and average later for diags
-        PBLH = []
-        VCD_NO2 = []
-        VCD_FORM = []
-        PBL_no2_factor = []
-        PBL_form_factor = []
-        #PL = []
-        #T = []
-        surface_albedo_no2 = []
-        surface_albedo_hcho = []
-        O3col = []
-        SZA = []
-        surface_alt = []
-        VCD_NO2_err = []
-        VCD_HCHO_err = []
-        H2O = []
+        # Variables to accumulate daily data
+        PBLH, VCD_NO2, VCD_FORM = [], [], []
+        PBL_no2_factor, PBL_form_factor = [], []
+        surface_albedo_no2, surface_albedo_hcho = [], []
+        O3col, SZA, surface_alt = [], [], []
+        VCD_NO2_err, VCD_HCHO_err, H2O = [], [], []
+
         # reading NO2 files daily
         for f in no2_files:
             print(f)
@@ -149,14 +122,14 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         NO2_ppbv = VCD_NO2*PBL_no2_factor
         HCHO_ppbv = VCD_FORM*PBL_form_factor
 
-        #taking care of random and sys errors
+        # taking care of random and sys errors
         NO2_ppbv_err_rand = VCD_NO2_err*PBL_no2_factor
         HCHO_ppbv_err_rand = VCD_HCHO_err*PBL_form_factor
 
-        # the sys error consists of error in slope, error in offset, error in MINDS conversion factor                 
-        NO2_ppbv_err_sys = np.sqrt(((0.01*VCD_NO2*PBL_no2_factor)**2 + (0.32*PBL_no2_factor)**2 + \
+        # the sys error consists of error in slope, error in offset, error in MINDS conversion factor
+        NO2_ppbv_err_sys = np.sqrt(((0.01*VCD_NO2*PBL_no2_factor)**2 + (0.32*PBL_no2_factor)**2 +
                                    (VCD_NO2*0.09)**2))
-        HCHO_ppbv_err_sys = np.sqrt(((0.01*VCD_FORM*PBL_form_factor)**2 + (0.90*PBL_form_factor)**2 +\
+        HCHO_ppbv_err_sys = np.sqrt(((0.01*VCD_FORM*PBL_form_factor)**2 + (0.90*PBL_form_factor)**2 +
                                     (VCD_FORM*0.08)**2))
 
         # extrating J values from a LUT
@@ -262,7 +235,8 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         inputs["PBL_form_factor"].append(PBL_form_factor)
         inputs["PO3_err_sys"].append(np.sqrt(PO3_err2_sys))
         inputs["PO3_err_rand"].append(np.sqrt(PO3_err2_rand))
-        time_processed.append(datetime.datetime.combine(single_date, datetime.datetime.min.time()))
+        time_processed.append(datetime.datetime.combine(
+            single_date, datetime.datetime.min.time()))
 
     FNR = np.array(inputs["FNR"])
     H2O = np.array(inputs["H2O"])

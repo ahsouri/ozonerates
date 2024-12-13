@@ -16,8 +16,7 @@ import warnings
 import numpy as np
 from netCDF4 import Dataset
 from datetime import datetime
-from cftime import date2num
-from time import asctime, gmtime, strftime
+from time import asctime
 from sys import exit
 
 warnings.filterwarnings('ignore')
@@ -36,20 +35,6 @@ def log_message(msg,error=False):
         print(m)
         
 class ozonerate_netcdf_writer:
-    '''
-        # ------------------------------------- #
-        # Ozonerates model results writer class #
-        # using NETCDF4 format suitable for ing #
-        # estion in NASA's archiving system.    #
-        # Uses the CF standard regarding the de #
-        # finition of dimensions, variables and #
-        # attributes.                           #
-        #                                       #
-        # Gonzalo Gonzalez Abad                 #
-        # ggonzalezabad@cfa.harvard.edu         #
-        # December 2024                         #
-        # ------------------------------------- #
-    '''
 
     def __init__(self,filename):
         ''' Initialize ozonerates netCDF4 writer
