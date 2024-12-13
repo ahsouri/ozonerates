@@ -262,7 +262,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         inputs["PBL_form_factor"].append(PBL_form_factor)
         inputs["PO3_err_sys"].append(np.sqrt(PO3_err2_sys))
         inputs["PO3_err_rand"].append(np.sqrt(PO3_err2_rand))
-        time_processed.append(single_date)
+        time_processed.append(datetime.datetime.combine(single_date, datetime.datetime.min.time()))
 
     FNR = np.array(inputs["FNR"])
     H2O = np.array(inputs["H2O"])
