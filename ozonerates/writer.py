@@ -97,7 +97,7 @@ class ozonerate_netcdf_writer:
             log_message(e,error=True)
 
     def create_variable(self,name='variable',datatype=np.float32,dimensions=None,compression='zlib',complevel=1,
-                        shuffle=True,fill_value=-9999.0,values=1,least_significant_digig=None,attributes={}):
+                        shuffle=True,fill_value=np.nan,values=1,least_significant_digig=None,attributes={}):
         ''' Create variable name in netCDF4 file root
             ARGS:
                 name(string): Variable name

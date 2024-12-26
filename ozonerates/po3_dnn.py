@@ -68,6 +68,10 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
                                       + f"{single_date.day:02}" + "*.nc")))
         hcho_files = sorted((glob.glob(hcho_path + "/*_FORM_" + str(single_date.year) + f"{single_date.month:02}"
                                        + f"{single_date.day:02}" + "*.nc")))
+
+        if (not no2_files) or (not hcho_files):
+           print(f"files aren't available for {single_date}")
+           continue
         # we make a list of inputs to append and average later for diags
         # Variables to accumulate daily data
         PBLH, VCD_NO2, VCD_FORM = [], [], []
