@@ -349,84 +349,87 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
        Output:
              tropomi_hcho [satellite_amf]: a dataclass format (see config.py)
     '''
-    # hcho reader
-    print("Currently reading: " + fname.split('/')[-1])
-    # read time
-    time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
-        np.nanmean(np.array(_read_group_nc(
-            fname, ['PRODUCT'], 'delta_time')), axis=1)/1000.0
-    time = np.nanmean(time, axis=0)
-    time = np.squeeze(time)
-    time = datetime.datetime(
-        2010, 1, 1) + datetime.timedelta(seconds=int(time))
-    #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
-    # read lat/lon at centers
-    latitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'latitude').astype('float32')
-    longitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'longitude').astype('float32')
-    # read total amf
-    amf_total = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
+    try:
+        # hcho reader
+        print("Currently reading: " + fname.split('/')[-1])
+        # read time
+        time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
+            np.nanmean(np.array(_read_group_nc(
+                fname, ['PRODUCT'], 'delta_time')), axis=1)/1000.0
+        time = np.nanmean(time, axis=0)
+        time = np.squeeze(time)
+        time = datetime.datetime(
+            2010, 1, 1) + datetime.timedelta(seconds=int(time))
+        #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
+        # read lat/lon at centers
+        latitude_center = _read_group_nc(
+            fname, ['PRODUCT'], 'latitude').astype('float32')
+        longitude_center = _read_group_nc(
+            fname, ['PRODUCT'], 'longitude').astype('float32')
+        # read total amf
+        amf_total = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
                                'formaldehyde_tropospheric_air_mass_factor')
-    # read total hcho
-    vcd = _read_group_nc(fname, ['PRODUCT'],
+        # read total hcho
+        vcd = _read_group_nc(fname, ['PRODUCT'],
                          'formaldehyde_tropospheric_vertical_column')
-    scd = _read_group_nc(fname, ['PRODUCT'], 'formaldehyde_tropospheric_vertical_column') *\
-        amf_total
-    vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
-    scd = (scd*6.02214*1e19*1e-15).astype('float16')
-    # bias correction (Souri et al., 2024, ACP)
-    vcd = (vcd-0.9)/0.59
-    # read quality flag
-    quality_flag = _read_group_nc(
-        fname, ['PRODUCT'], 'qa_value').astype('float16')
-    # read pressures for SWs
-    tm5_a = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_a')/100.0
-    tm5_b = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_b')
-    ps = _read_group_nc(fname, [
+        scd = _read_group_nc(fname, ['PRODUCT'], 'formaldehyde_tropospheric_vertical_column') *\
+            amf_total
+        vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
+        scd = (scd*6.02214*1e19*1e-15).astype('float16')
+        # bias correction (Souri et al., 2024, ACP)
+        vcd = (vcd-0.9)/0.59
+        # read quality flag
+        quality_flag = _read_group_nc(
+            fname, ['PRODUCT'], 'qa_value').astype('float16')
+        # read pressures for SWs
+        tm5_a = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_a')/100.0
+        tm5_b = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_b')
+        ps = _read_group_nc(fname, [
                         'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float32')/100.0
-    surface_alt = _read_group_nc(fname, [
-        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
-    surface_albedo = _read_group_nc(fname, [
-        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo').astype('float32')
-    SZA = _read_group_nc(fname, [
-        'PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
-    # p_mid = np.zeros(
-    #    (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
-    # if read_ak == True:
-    #    SWs = np.zeros(
-    #        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-    #    AKs = _read_group_nc(fname, [
-    #        'PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'averaging_kernel').astype('float16')
-    # else:
-    SWs = np.empty((1))
-    # for some reason, in the HCHO product, a and b values are the center instead of the edges (unlike NO2)
-    # for z in range(0, 34):
-    #    p_mid[z, :, :] = (tm5_a[z]+tm5_b[z]*ps[:, :])
-    #    if read_ak == True:
-    #        SWs[z, :, :] = AKs[:, :, z]*amf_total
-    # remove bad SWs
-    # SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
-    #             (SWs > 100.0) | (SWs < 0.0))] = 0.0
-    # read the precision
-    uncertainty = _read_group_nc(fname, ['PRODUCT'],
+        surface_alt = _read_group_nc(fname, [
+            'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
+        surface_albedo = _read_group_nc(fname, [
+            'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo').astype('float32')
+        SZA = _read_group_nc(fname, [
+            'PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
+        # p_mid = np.zeros(
+        #    (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
+        # if read_ak == True:
+        #    SWs = np.zeros(
+        #        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+        #    AKs = _read_group_nc(fname, [
+        #        'PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'averaging_kernel').astype('float16')
+        # else:
+        SWs = np.empty((1))
+        # for some reason, in the HCHO product, a and b values are the center instead of the edges (unlike NO2)
+        # for z in range(0, 34):
+        #    p_mid[z, :, :] = (tm5_a[z]+tm5_b[z]*ps[:, :])
+        #    if read_ak == True:
+        #        SWs[z, :, :] = AKs[:, :, z]*amf_total
+        # remove bad SWs
+        # SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+        #             (SWs > 100.0) | (SWs < 0.0))] = 0.0
+        # read the precision
+        uncertainty = _read_group_nc(fname, ['PRODUCT'],
                                  'formaldehyde_tropospheric_vertical_column_precision')
-    uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
+        uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
 
-    tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), latitude_center, longitude_center,
+        tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), latitude_center, longitude_center,
                                  [], [], uncertainty, quality_flag, [], SWs, [], [], [], surface_albedo, SZA, surface_alt)
-    # interpolation
-    if (ctm_models_coordinate is not None):
-        print('Currently interpolating ...')
-        grid_size = 0.10  # degree
-        tropomi_hcho = interpolator(
-            1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
-    # return
-    if tropomi_hcho != 0:
-        return tropomi_hcho
-    else:
+        # interpolation
+        if (ctm_models_coordinate is not None):
+            print('Currently interpolating ...')
+            grid_size = 0.10  # degree
+            tropomi_hcho = interpolator(
+                1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
+        # return
+        if tropomi_hcho != 0:
+            return tropomi_hcho
+        else:
+            return None
+    except:
         return None
 
 
@@ -441,104 +444,107 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
        Output:
              tropomi_no2 [satellite_amf]: a dataclass format (see config.py)
     '''
-    # say which file is being read
-    print("Currently reading: " + fname.split('/')[-1])
-    # read time
-    time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
-        np.nanmean(np.array(_read_group_nc(
-            fname, ['PRODUCT'], 'delta_time')), axis=0)/1000.0
-    time = np.squeeze(time)
-    time = datetime.datetime(
-        2010, 1, 1) + datetime.timedelta(seconds=int(time))
-    #print(datetime.datetime.strptime(str(tropomi_no2.time),"%Y-%m-%d %H:%M:%S"))
-    # read lat/lon at centers
-    latitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'latitude').astype('float32')
-    longitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'longitude').astype('float32')
-    # read total amf
-    amf_total = _read_group_nc(fname, ['PRODUCT'], 'air_mass_factor_total')
-    # read no2
-    if trop == False:
-        vcd = _read_group_nc(
-            fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'nitrogendioxide_total_column')
-        scd = _read_group_nc(
-            fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'nitrogendioxide_slant_column_density')
-        # read the precision
-        uncertainty = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
+    try:
+        # say which file is being read
+        print("Currently reading: " + fname.split('/')[-1])
+        # read time
+        time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
+            np.nanmean(np.array(_read_group_nc(
+                fname, ['PRODUCT'], 'delta_time')), axis=0)/1000.0
+        time = np.squeeze(time)
+        time = datetime.datetime(
+            2010, 1, 1) + datetime.timedelta(seconds=int(time))
+        #print(datetime.datetime.strptime(str(tropomi_no2.time),"%Y-%m-%d %H:%M:%S"))
+        # read lat/lon at centers
+        latitude_center = _read_group_nc(
+            fname, ['PRODUCT'], 'latitude').astype('float32')
+        longitude_center = _read_group_nc(
+            fname, ['PRODUCT'], 'longitude').astype('float32')
+        # read total amf
+        amf_total = _read_group_nc(fname, ['PRODUCT'], 'air_mass_factor_total')
+        # read no2
+        if trop == False:
+            vcd = _read_group_nc(
+                fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'nitrogendioxide_total_column')
+            scd = _read_group_nc(
+                fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'nitrogendioxide_slant_column_density')
+            # read the precision
+            uncertainty = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
                                      'nitrogendioxide_total_column_precision')
-    else:
-        vcd = _read_group_nc(
-            fname, ['PRODUCT'], 'nitrogendioxide_tropospheric_column')
-        scd = vcd*_read_group_nc(
-            fname, ['PRODUCT'], 'air_mass_factor_troposphere')
-        # read the precision
-        uncertainty = _read_group_nc(fname, ['PRODUCT'],
+        else:
+            vcd = _read_group_nc(
+                fname, ['PRODUCT'], 'nitrogendioxide_tropospheric_column')
+            scd = vcd*_read_group_nc(
+                fname, ['PRODUCT'], 'air_mass_factor_troposphere')
+            # read the precision
+            uncertainty = _read_group_nc(fname, ['PRODUCT'],
                                      'nitrogendioxide_tropospheric_column_precision')
-    vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
-    scd = (scd*6.02214*1e19*1e-15).astype('float16')
-    uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
-    # bias correction (Souri et al., 2024, ACP)
-    vcd = (vcd-0.32)/0.66
-    # read quality flag
-    quality_flag = _read_group_nc(
-        fname, ['PRODUCT'], 'qa_value').astype('float16')
-    # read pressures for SWs
-    tm5_a = _read_group_nc(fname, ['PRODUCT'], 'tm5_constant_a')/100.0
-    tm5_a = np.concatenate((tm5_a[:, 0], 0), axis=None)
-    tm5_b = _read_group_nc(fname, ['PRODUCT'], 'tm5_constant_b')
-    tm5_b = np.concatenate((tm5_b[:, 0], 0), axis=None)
+        vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
+        scd = (scd*6.02214*1e19*1e-15).astype('float16')
+        uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
+        # bias correction (Souri et al., 2024, ACP)
+        vcd = (vcd-0.32)/0.66
+        # read quality flag
+        quality_flag = _read_group_nc(
+            fname, ['PRODUCT'], 'qa_value').astype('float16')
+        # read pressures for SWs
+        tm5_a = _read_group_nc(fname, ['PRODUCT'], 'tm5_constant_a')/100.0
+        tm5_a = np.concatenate((tm5_a[:, 0], 0), axis=None)
+        tm5_b = _read_group_nc(fname, ['PRODUCT'], 'tm5_constant_b')
+        tm5_b = np.concatenate((tm5_b[:, 0], 0), axis=None)
 
-    ps = _read_group_nc(fname, [
+        ps = _read_group_nc(fname, [
                         'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float32')/100.0
-    surface_alt = _read_group_nc(fname, [
-        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
-    surface_albedo = _read_group_nc(fname, [
-        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo_nitrogendioxide_window').astype('float32')
-    SZA = _read_group_nc(fname, [
-        'PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
-    p_mid = np.zeros(
-        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-    # if read_ak == True:
-    #    SWs = np.zeros(
-    #        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-    #    AKs = _read_group_nc(fname, ['PRODUCT'],
-    #                         'averaging_kernel').astype('float16')
-    # else:
-    SWs = np.empty((1))
-    for z in range(0, 34):
-        p_mid[z, :, :] = 0.5*(tm5_a[z]+tm5_b[z]*ps[:, :] +
+        surface_alt = _read_group_nc(fname, [
+            'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
+        surface_albedo = _read_group_nc(fname, [
+            'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo_nitrogendioxide_window').astype('float32')
+        SZA = _read_group_nc(fname, [
+            'PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
+        p_mid = np.zeros(
+            (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+        # if read_ak == True:
+        #    SWs = np.zeros(
+        #        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+        #    AKs = _read_group_nc(fname, ['PRODUCT'],
+        #                         'averaging_kernel').astype('float16')
+        # else:
+        SWs = np.empty((1))
+        for z in range(0, 34):
+            p_mid[z, :, :] = 0.5*(tm5_a[z]+tm5_b[z]*ps[:, :] +
                               tm5_a[z+1]+tm5_b[z+1]*ps[:, :])
-    #    if read_ak == True:
-    #        SWs[z, :, :] = AKs[:, :, z]*amf_total
-    # remove bad SWs
-    # SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
-    #             (SWs > 100.0) | (SWs < 0.0))] = 0.0
-    # read the tropopause layer index
-    if trop == True:
-        trop_layer = _read_group_nc(
-            fname, ['PRODUCT'], 'tm5_tropopause_layer_index')
-        tropopause = np.zeros_like(trop_layer).astype('float16')
-        for i in range(0, np.shape(trop_layer)[0]):
-            for j in range(0, np.shape(trop_layer)[1]):
-                if (trop_layer[i, j] > 0 and trop_layer[i, j] < 34):
-                    tropopause[i, j] = p_mid[trop_layer[i, j], i, j]
-                else:
-                    tropopause[i, j] = np.nan
-    else:
-        tropopause = np.empty((1))
-    tropomi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center, longitude_center,
+        #    if read_ak == True:
+        #        SWs[z, :, :] = AKs[:, :, z]*amf_total
+        # remove bad SWs
+        # SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+        #             (SWs > 100.0) | (SWs < 0.0))] = 0.0
+        # read the tropopause layer index
+        if trop == True:
+            trop_layer = _read_group_nc(
+                fname, ['PRODUCT'], 'tm5_tropopause_layer_index')
+            tropopause = np.zeros_like(trop_layer).astype('float16')
+            for i in range(0, np.shape(trop_layer)[0]):
+                for j in range(0, np.shape(trop_layer)[1]):
+                    if (trop_layer[i, j] > 0 and trop_layer[i, j] < 34):
+                        tropopause[i, j] = p_mid[trop_layer[i, j], i, j]
+                    else:
+                        tropopause[i, j] = np.nan
+        else:
+            tropopause = np.empty((1))
+        tropomi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center, longitude_center,
                                 [], [], uncertainty, quality_flag, [], SWs, [], [], [], surface_albedo, SZA, surface_alt)
-    # interpolation
-    if (ctm_models_coordinate is not None):
-        print('Currently interpolating ...')
-        grid_size = 0.10  # degree
-        tropomi_no2 = interpolator(
-            1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh=0.75)
-    # return
-    if tropomi_no2 != 0:
-        return tropomi_no2
-    else:
+        # interpolation
+        if (ctm_models_coordinate is not None):
+            print('Currently interpolating ...')
+            grid_size = 0.10  # degree
+            tropomi_no2 = interpolator(
+                1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh=0.75)
+        # return
+        if tropomi_no2 != 0:
+            return tropomi_no2
+        else:
+            return None
+    except:
         return None
 
 
@@ -658,6 +664,7 @@ def omi_reader_no2_nasa(fname: str, trop: bool, ctm_models_coordinate=None, read
         return None
 
 
+
 def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=False) -> satellite_amf:
     '''
        OMI NO2 L2 reader (KNMI)
@@ -669,118 +676,121 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=F
        Output:
              omi_no2 [satellite_amf]: a dataclass format (see config.py)
     '''
-    # say which file is being read
-    print("Currently reading: " + fname.split('/')[-1])
-    # read time
-    time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
-        np.nanmean(np.array(_read_group_nc(
-            fname, ['PRODUCT'], 'delta_time')), axis=0)/1000.0
-    time = np.squeeze(time)
-    time = datetime.datetime(
-        1995, 1, 1) + datetime.timedelta(seconds=int(time))
+    try:
+        # say which file is being read
+        print("Currently reading: " + fname.split('/')[-1])
+        # read time
+        time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
+            np.nanmean(np.array(_read_group_nc(
+                fname, ['PRODUCT'], 'delta_time')), axis=0)/1000.0
+        time = np.squeeze(time)
+        time = datetime.datetime(
+            1995, 1, 1) + datetime.timedelta(seconds=int(time))
 
-    print(datetime.datetime.strptime(str(time), "%Y-%m-%d %H:%M:%S"))
-    # read lat/lon at centers
-    latitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'latitude').astype('float32')
-    longitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'longitude').astype('float32')
-    # read no2
-    if trop == False:
-        vcd = _read_group_nc(
-            fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'stratospheric_no2_vertical_column')
-        scd = vcd*_read_group_nc(
-            fname, ['PRODUCT'], 'amf_total')
-        # read the precision
-        uncertainty = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
+        print(datetime.datetime.strptime(str(time), "%Y-%m-%d %H:%M:%S"))
+        # read lat/lon at centers
+        latitude_center = _read_group_nc(
+            fname, ['PRODUCT'], 'latitude').astype('float32')
+        longitude_center = _read_group_nc(
+            fname, ['PRODUCT'], 'longitude').astype('float32')
+        # read no2
+        if trop == False:
+            vcd = _read_group_nc(
+                fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'stratospheric_no2_vertical_column')
+            scd = vcd*_read_group_nc(
+                fname, ['PRODUCT'], 'amf_total')
+            # read the precision
+            uncertainty = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
                                      'total_no2_vertical_column_uncertainty')
-    else:
-        vcd = _read_group_nc(
-            fname, ['PRODUCT'], 'tropospheric_no2_vertical_column')
-        scd = vcd*_read_group_nc(
-            fname, ['PRODUCT'], 'amf_trop')
-        # read the precision
-        uncertainty = _read_group_nc(fname, ['PRODUCT'],
+        else:
+            vcd = _read_group_nc(
+                fname, ['PRODUCT'], 'tropospheric_no2_vertical_column')
+            scd = vcd*_read_group_nc(
+                fname, ['PRODUCT'], 'amf_trop')
+            # read the precision
+            uncertainty = _read_group_nc(fname, ['PRODUCT'],
                                      'tropospheric_no2_vertical_column_uncertainty')
 
-    vcd = (vcd*1e-15).astype('float16')
-    scd = (scd*1e-15).astype('float16')
-    uncertainty = (uncertainty*1e-15).astype('float16')
-    # bias correction based on Pinardi et al. 2021:
-    vcd = (vcd - 0.26)/0.83
+        vcd = (vcd*1e-15).astype('float16')
+        scd = (scd*1e-15).astype('float16')
+        uncertainty = (uncertainty*1e-15).astype('float16')
+        # bias correction based on Pinardi et al. 2021:
+        vcd = (vcd - 0.26)/0.83
 
-    SZA = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
-    surface_terrain = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
+        SZA = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'], 'solar_zenith_angle').astype('float32')
+        surface_terrain = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_altitude').astype('float32')
 
-    # read quality flag
-    cf_fraction = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'cloud_radiance_fraction_no2').astype('float16')
-    cf_fraction_mask = cf_fraction < 0.5
-    cf_fraction_mask = np.multiply(cf_fraction_mask, 1.0).squeeze()
+        # read quality flag
+        cf_fraction = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'cloud_radiance_fraction_no2').astype('float16')
+        cf_fraction_mask = cf_fraction < 0.5
+        cf_fraction_mask = np.multiply(cf_fraction_mask, 1.0).squeeze()
 
-    train_ref = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo_no2').astype('float16')
+        train_ref = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_albedo_no2').astype('float16')
 
-    processing_flag = _read_group_nc(
-        fname, ['PRODUCT'], 'processing_error_flag').astype('float16')
-    proc_mask = processing_flag == 0.0
-    proc_mask = np.multiply(proc_mask, 1.0).squeeze()
+        processing_flag = _read_group_nc(
+            fname, ['PRODUCT'], 'processing_error_flag').astype('float16')
+        proc_mask = processing_flag == 0.0
+        proc_mask = np.multiply(proc_mask, 1.0).squeeze()
 
-    snow_flag = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'snow_ice_flag').astype('float16')
-    snow_mask = np.logical_or(snow_flag < 10, snow_flag == 255)
-    snow_mask = np.multiply(snow_mask, 1.0).squeeze()
+        snow_flag = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'snow_ice_flag').astype('float16')
+        snow_mask = np.logical_or(snow_flag < 10, snow_flag == 255)
+        snow_mask = np.multiply(snow_mask, 1.0).squeeze()
 
-    quality_flag = snow_mask*cf_fraction_mask*proc_mask
-    # remove edges because their footprint is large
-    quality_flag[:, 0:2] = -100.0
-    quality_flag[:, -2::] = -100.0
+        quality_flag = snow_mask*cf_fraction_mask*proc_mask
+        # remove edges because their footprint is large
+        quality_flag[:, 0:2] = -100.0
+        quality_flag[:, -2::] = -100.0
 
-    # getting tropopause pressure
-
-    # read pressures for SWs
-    tm5_a = _read_group_nc(fname, ['PRODUCT'], 'tm5_pressure_level_a')/100.0
-    tm5_a = np.concatenate((tm5_a[:, 0], 0), axis=None)
-    tm5_b = _read_group_nc(fname, ['PRODUCT'], 'tm5_pressure_level_b')
-    tm5_b = np.concatenate((tm5_b[:, 0], 0), axis=None)
-    ps = _read_group_nc(fname, [
+        # getting tropopause pressure
+    
+        # read pressures for SWs
+        tm5_a = _read_group_nc(fname, ['PRODUCT'], 'tm5_pressure_level_a')/100.0
+        tm5_a = np.concatenate((tm5_a[:, 0], 0), axis=None)
+        tm5_b = _read_group_nc(fname, ['PRODUCT'], 'tm5_pressure_level_b')
+        tm5_b = np.concatenate((tm5_b[:, 0], 0), axis=None)
+        ps = _read_group_nc(fname, [
                         'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float32')
-    p_mid = np.zeros(
-        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+        p_mid = np.zeros(
+            (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
 
-    SWs = np.empty((1))
-    for z in range(0, 34):
-        p_mid[z, :, :] = 0.5*(tm5_a[z]+tm5_b[z]*ps[:, :] +
+        SWs = np.empty((1))
+        for z in range(0, 34):
+            p_mid[z, :, :] = 0.5*(tm5_a[z]+tm5_b[z]*ps[:, :] +
                               tm5_a[z+1]+tm5_b[z+1]*ps[:, :])
 
-    if trop == True:
-        trop_layer = _read_group_nc(
-            fname, ['PRODUCT'], 'tm5_tropopause_layer_index')
-        tropopause = np.zeros_like(trop_layer).astype('float16')
-        for i in range(0, np.shape(trop_layer)[0]):
-            for j in range(0, np.shape(trop_layer)[1]):
-                if (trop_layer[i, j] > 0 and trop_layer[i, j] < 34):
-                    tropopause[i, j] = p_mid[trop_layer[i, j], i, j]
-                else:
-                    tropopause[i, j] = np.nan
-    else:
-        tropopause = np.empty((1))
-    # populate omi class
-    omi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center,
+        if trop == True:
+            trop_layer = _read_group_nc(
+                fname, ['PRODUCT'], 'tm5_tropopause_layer_index')
+            tropopause = np.zeros_like(trop_layer).astype('float16')
+            for i in range(0, np.shape(trop_layer)[0]):
+                for j in range(0, np.shape(trop_layer)[1]):
+                    if (trop_layer[i, j] > 0 and trop_layer[i, j] < 34):
+                        tropopause[i, j] = p_mid[trop_layer[i, j], i, j]
+                    else:
+                        tropopause[i, j] = np.nan
+        else:
+            tropopause = np.empty((1))
+        # populate omi class
+        omi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center,
                             longitude_center, [], [], uncertainty, quality_flag, [], SWs,
                             [], [], [], train_ref, SZA, surface_terrain)
-    # interpolation
-    if (ctm_models_coordinate is not None):
-        print('Currently interpolating ...')
-        grid_size = 0.25  # degree
-        omi_no2 = interpolator(
-            1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)  # bilinear mass-conserved interpolation
-    # return
-    if omi_no2 != 0:
-        return omi_no2
-    else:
+        # interpolation
+        if (ctm_models_coordinate is not None):
+            print('Currently interpolating ...')
+            grid_size = 0.25  # degree
+            omi_no2 = interpolator(
+                1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)  # bilinear mass-conserved interpolation
+        # return
+        if omi_no2 != 0:
+            return omi_no2
+        else:
+            return None
+    except:
         return None
 
 
