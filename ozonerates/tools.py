@@ -286,7 +286,7 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
         'time_coverage_start_since_epoch': (min(data.time) - reference_time).total_seconds(),
         'time_coverage_end_since_epoch': (max(data.time) - reference_time).total_seconds(),
         'project': "Long-term Maps of Satellite-Based Ozone Production Rates using OMI and TROPOMI HCHO and NO2 Observations via Empirical and Machine Learning Methods: Insights from NASA's Air Quality Campaigns",
-        'summary': 'Global ozone production rates derived from satellite observations, ground remote sensing, and atmospheric models, Souri et al., 2025 (https://egusphere.copernicus.org/preprints/2024/egusphere-2024-1947/)',
+        'summary': 'Global ozone production rates derived from satellite observations, ground remote sensing, and atmospheric models, Souri et al., 2025a,b',
         'spatial_coverage': 'Global',
         'source': 'OMI',
         'keywords': 'GEOGRAPHIC REGION>GLOBAL, EARTH SCIENCE>ATMOSPHERE>AIR QUALITY> TROPOSPHERIC OZONE, EARTH SCIENCE>ATMOSPHERE>ATMOSPHERIC CHEMISTRY>OXYGEN COMPOUNDS>ATMOSPHERIC OZONE',
@@ -294,6 +294,7 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
         'title': 'Global Ozone Production Rates',
         'institution': 'NASA GSFC (614)/GETARII(MSU)/SAO',
         'creator': 'Amir H. Souri (PI) and Gonzalo Gonzalez Abad (Co-I)',
+        'creator_email': 'ozonerates@gmail.com'.
         'creator_url': 'https://www.ozonerates.space',
         'Conventions': "CF-1.6, ACDD-1.3"
     }
