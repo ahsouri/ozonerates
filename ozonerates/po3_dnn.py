@@ -127,8 +127,8 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         HCHO_ppbv = VCD_FORM*PBL_form_factor
 
         # we can't handle negative values in this algorithm
-        NO2_ppbv[NO2_ppbv<0] = 0.0
-        HCHO_ppbv[HCHO_ppbv<0] = 0.0
+        NO2_ppbv = np.abs(NO2_ppbv)
+        HCHO_ppbv = np.abs(HCHO_ppbv)
 
         # taking care of random and sys errors
         NO2_ppbv_err_rand = VCD_NO2_err*PBL_no2_factor

@@ -294,7 +294,7 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
         'title': 'Global Ozone Production Rates',
         'institution': 'NASA GSFC (614)/GETARII(MSU)/SAO',
         'creator': 'Amir H. Souri (PI) and Gonzalo Gonzalez Abad (Co-I)',
-        'creator_email': 'ozonerates@gmail.com'.
+        'creator_email': 'ozonerates@gmail.com',
         'creator_url': 'https://www.ozonerates.space',
         'Conventions': "CF-1.6, ACDD-1.3"
     }
