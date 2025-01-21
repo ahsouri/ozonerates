@@ -80,43 +80,32 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         enddate[5:7]), int(enddate[8:10]))
 
     PO3_estimates = []
-    inputs = {}
-    inputs["FNR"] = []
-    inputs["J1"] = []
-    inputs["J4"] = []
-    inputs["HCHO_ppbv"] = []
-    inputs["NO2_ppbv"] = []
-    inputs["PO3_J4"] = []
-    inputs["PO3_J1"] = []
-    inputs["PO3_HCHO"] = []
-    inputs["PO3_NO2"] = []
-    inputs["VCD_NO2"] = []
-    inputs["VCD_FORM"] = []
-    inputs["PBL_no2_factor"] = []
-    inputs["PBL_form_factor"] = []
-    inputs["PO3_err"] = []
-
+    inputs = {
+        "H2O": [], "FNR": [], "J1": [], "J4": [], "HCHO_ppbv": [], "NO2_ppbv": [],
+        "SJ4": [], "SJ1": [], "SHCHO": [], "SNO2": [], "SH2O": [],
+        "VCD_NO2": [], "VCD_FORM": [], "PBL_no2_factor": [], "PBL_form_factor": [],
+        "PO3_err_sys": [], "PO3_err_rand": []
+    }
+    time_processed = []
     for single_date in _daterange(start_date, end_date):
 
         no2_files = sorted((glob.glob(no2_path + "/*_NO2_" + str(single_date.year) + f"{single_date.month:02}"
                                       + f"{single_date.day:02}" + "*.nc")))
         hcho_files = sorted((glob.glob(hcho_path + "/*_FORM_" + str(single_date.year) + f"{single_date.month:02}"
                                        + f"{single_date.day:02}" + "*.nc")))
+        
+        if (not no2_files) or (not hcho_files):
+           print(f"files aren't available for {single_date}")
+           continue
         # we make a list of inputs to append and average later for diags
-        PBLH = []
-        VCD_NO2 = []
-        VCD_FORM = []
-        PBL_no2_factor = []
-        PBL_form_factor = []
-        #PL = []
-        #T = []
-        surface_albedo_no2 = []
-        O3col = []
-        SZA = []
-        surface_alt = []
-        VCD_NO2_err = []
-        VCD_HCHO_err = []
+        # Variables to accumulate daily data
+        PBLH, VCD_NO2, VCD_FORM = [], [], []
+        PBL_no2_factor, PBL_form_factor = [], []
+        surface_albedo_no2, surface_albedo_hcho = [], []
+        O3col, SZA, surface_alt = [], [], []
+        VCD_NO2_err, VCD_HCHO_err, H2O = [], [], []
         # reading NO2 files daily
+       # reading NO2 files daily
         for f in no2_files:
             print(f)
             PBLH.append(_read_nc(f, 'PBLH'))
@@ -131,10 +120,11 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
             latitude = _read_nc(f, 'latitude')
             longitude = _read_nc(f, 'longitude')
             VCD_NO2_err.append(_read_nc(f, 'VCD_err'))
-
+            H2O.append(_read_nc(f, 'H2O'))
         # reading FORM files daily
         for f in hcho_files:
             VCD_FORM.append(_read_nc(f, 'VCD'))
+            surface_albedo_hcho.append(_read_nc(f, 'surface_albedo'))
             PBL_form_factor.append(_read_nc(f, 'gas_pbl_factor_hcho'))
             VCD_HCHO_err.append(_read_nc(f, 'VCD_err'))
 
@@ -146,7 +136,9 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         PBL_form_factor = np.nanmean(np.array(PBL_form_factor), axis=0)
         #PL = np.nanmean(np.array(PL), axis=0)
         #T = np.nanmean(np.array(T), axis=0)
+        H2O = np.nanmean(np.array(H2O), axis=0)
         surface_albedo_no2 = np.nanmean(np.array(surface_albedo_no2), axis=0)
+        surface_albedo_hcho = np.nanmean(np.array(surface_albedo_hcho), axis=0)
         O3col = np.nanmean(np.array(O3col), axis=0)
         SZA = np.nanmean(np.array(SZA), axis=0)
         surface_alt = np.nanmean(np.array(surface_alt), axis=0)
@@ -154,18 +146,24 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         VCD_NO2_err = np.sqrt(np.nanmean((np.array(VCD_NO2_err))**2, axis=0))
         # oceanic areas sometimes are negative
         surface_alt[surface_alt <= 0] = 0.0
-        # extract the features: potential temp, HCHO_ppbv, NO2_ppbv, jNO2, FNR
-        #mask_PBL = PL >= PBLH
-        #mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
-        #mask_PBL[mask_PBL != 1.0] = np.nan
-        #potential_temp = np.nanmean(T*((1000/PL)**(0.286))*mask_PBL, axis=0)
+        # extract the features: H2O, HCHO_ppbv, NO2_ppbv, jNO2, jO1D
+
         NO2_ppbv = VCD_NO2*PBL_no2_factor
         HCHO_ppbv = VCD_FORM*PBL_form_factor
-        NO2_ppbv_err = np.sqrt((VCD_NO2_err*PBL_no2_factor)**2 +
-                               (0.01*VCD_NO2*PBL_no2_factor)**2 + (0.32*PBL_no2_factor)**2)
-        HCHO_ppbv_err = np.sqrt((VCD_HCHO_err*PBL_form_factor)**2 +
-                                (0.01*VCD_FORM*PBL_form_factor)**2 + (0.90*PBL_form_factor)**2)
-        FNR = np.abs(HCHO_ppbv/NO2_ppbv)
+
+        # we can't handle negative values in this algorithm
+        NO2_ppbv[NO2_ppbv<0] = 0.0
+        HCHO_ppbv[HCHO_ppbv<0] = 0.0
+
+        # taking care of random and sys errors
+        NO2_ppbv_err_rand = VCD_NO2_err*PBL_no2_factor
+        HCHO_ppbv_err_rand = VCD_HCHO_err*PBL_form_factor
+
+        # the sys error consists of error in slope, error in offset, error in MINDS conversion factor
+        NO2_ppbv_err_sys = np.sqrt(((0.01*VCD_NO2*PBL_no2_factor)**2 + (0.32*PBL_no2_factor)**2 +
+                                   (VCD_NO2*0.09)**2))
+        HCHO_ppbv_err_sys = np.sqrt(((0.01*VCD_FORM*PBL_form_factor)**2 + (0.90*PBL_form_factor)**2 +
+                                    (VCD_FORM*0.08)**2))
 
         # extrating J values from a LUT
         Jvalue = sio.loadmat('../data/HybridJtables.mat')
@@ -178,6 +176,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         J4 = (J["J4"])
         J4 = np.array(J4[0, 0])
 
+        # J1 is O3 + hv -> O1D
         J1 = (J["J1"])
         J1 = np.array(J1[0, 0])
         # linear interpolation (extrapolation is not allowed = NaN)
@@ -185,12 +184,13 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
                      J4, (SZA.flatten(), surface_albedo_no2.flatten(),
                           O3col.flatten(), surface_alt.flatten()),
                      method="linear", bounds_error=False, fill_value=np.nan)
-        J4 = np.reshape(J4, (np.shape(FNR)[0], np.shape(FNR)[1]))
+        J4 = np.reshape(J4, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
+        # for J1, we use surface HCHO albedo because it's located at a smaller wavelength
         J1 = interpn((SZAhybrid.flatten(), ALBhybrid.flatten(), O3Chybrid.flatten(), ALThybrid.flatten()),
-                     J1, (SZA.flatten(), surface_albedo_no2.flatten(),
+                     J1, (SZA.flatten(), surface_albedo_hcho.flatten(),
                           O3col.flatten(), surface_alt.flatten()),
                      method="linear", bounds_error=False, fill_value=np.nan)
-        J1 = np.reshape(J1, (np.shape(FNR)[0], np.shape(FNR)[1]))
+        J1 = np.reshape(J1, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
         # load the lasso coeffs
         lasso_result = sio.loadmat('../data/lasso_piecewise_4group.mat')
         COEFF = lasso_result["COEFF"]
@@ -211,7 +211,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         # apply a monte-carlo way to approximate errors in PO3 estimates
         n_member = 10000
         output = Parallel(n_jobs=num_job)(delayed(loop_estimator)(
-            J4[i, j], J1[i, j], HCHO_ppbv[i, j], NO2_ppbv[i, j], HCHO_ppbv_err[i, j], NO2_ppbv_err[i, j], COEFFs, COEFF0s, n_member) for i in range(0, np.shape(FNR)[0]) for j in range(0, np.shape(FNR)[1]))
+            J4[i, j], J1[i, j], HCHO_ppbv[i, j], NO2_ppbv[i, j], HCHO_ppbv_err_rand[i, j], NO2_ppbv_err_rand[i, j], COEFFs, COEFF0s, n_member) for i in range(0, np.shape(FNR)[0]) for j in range(0, np.shape(FNR)[1]))
         output = np.array(output)
         po3_dist = output[:,0,:].squeeze()
         po3_err_dist = output[:,1,:].squeeze()
@@ -219,38 +219,46 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         PO3[:, :, :] = po3_dist.reshape((np.shape(FNR)[0], np.shape(FNR)[1], 5))
         PO3_err[:, :, :] = po3_err_dist.reshape((np.shape(FNR)[0], np.shape(FNR)[1], 5))
         # append inputs and PO3_estimates daily
-        PO3_estimates.append(np.sum(PO3, axis=2))
-        inputs["FNR"].append(FNR)
+        PO3_estimates.append((np.sum(PO3, axis=2)))
+        inputs["FNR"].append(np.abs(HCHO_ppbv/NO2_ppbv))
+        inputs["H2O"].append(H2O)
         inputs["J1"].append(J1*1e6)
         inputs["J4"].append(J4*1e3)
         inputs["HCHO_ppbv"].append(HCHO_ppbv)
         inputs["NO2_ppbv"].append(NO2_ppbv)
-        inputs["PO3_J4"].append(PO3[:, :, 0].squeeze())
-        inputs["PO3_J1"].append(PO3[:, :, 1].squeeze())
-        inputs["PO3_HCHO"].append(PO3[:, :, 2].squeeze())
-        inputs["PO3_NO2"].append(PO3[:, :, 3].squeeze())
+        inputs["SJ4"].append(PO3[:, :, 0].squeeze())
+        inputs["SJ1"].append(PO3[:, :, 1].squeeze())
+        inputs["SH2O"].append(PO3[:, :, 2].squeeze()*0.0)
+        inputs["SHCHO"].append(PO3[:, :, 2].squeeze())
+        inputs["SNO2"].append(PO3[:, :, 3].squeeze())
         inputs["VCD_NO2"].append(VCD_NO2)
         inputs["VCD_FORM"].append(VCD_FORM)
         inputs["PBL_no2_factor"].append(PBL_no2_factor)
         inputs["PBL_form_factor"].append(PBL_form_factor)
-        inputs["PO3_err"].append(np.sqrt(np.sum(PO3_err**2, axis=2)))
+        inputs["PO3_err_sys"].append(np.sqrt(np.sum(PO3_err**2*0.0, axis=2)))
+        inputs["PO3_err_rand"].append(np.sqrt(np.sum(PO3_err**2, axis=2)))
+        time_processed.append(datetime.datetime.combine(
+            single_date, datetime.datetime.min.time()))
 
     FNR = np.array(inputs["FNR"])
+    H2O = np.array(inputs["H2O"])
     J1 = np.array(inputs["J1"])
     J4 = np.array(inputs["J4"])
     HCHO_ppbv = np.array(inputs["HCHO_ppbv"])
     NO2_ppbv = np.array(inputs["NO2_ppbv"])
-    J1_contrib = np.array(inputs["PO3_J1"])
-    J4_contrib = np.array(inputs["PO3_J4"])
-    NO2_contrib = np.array(inputs["PO3_NO2"])
-    HCHO_contrib = np.array(inputs["PO3_HCHO"])
+    J1_contrib = np.array(inputs["SJ1"])
+    J4_contrib = np.array(inputs["SJ4"])
+    NO2_contrib = np.array(inputs["SNO2"])
+    HCHO_contrib = np.array(inputs["SHCHO"])
+    SH2O = np.array(inputs["SH2O"])
     VCD_NO2 = np.array(inputs["VCD_NO2"])
     VCD_FORM = np.array(inputs["VCD_FORM"])
     PBL_no2_factor = np.array(inputs["PBL_no2_factor"])
     PBL_form_factor = np.array(inputs["PBL_form_factor"])
     PO3_estimates = np.array(PO3_estimates)
-    PO3_err = np.array(inputs["PO3_err"])
+    PO3_err_sys = np.array(inputs["PO3_err_sys"])
+    PO3_err_rand = np.array(inputs["PO3_err_rand"])
 
-    output = param_output(latitude, longitude, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
-                          FNR, HCHO_ppbv*0.0, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, J1_contrib*0.0, PO3_err)
+    output = param_output(latitude, longitude, time_processed, VCD_NO2, PBL_no2_factor, VCD_FORM, PBL_form_factor, PO3_estimates,
+                          FNR, H2O, HCHO_ppbv, NO2_ppbv, J4, J1, HCHO_contrib, NO2_contrib, J4_contrib, J1_contrib, SH2O, PO3_err_rand, PO3_err_sys)
     return output
