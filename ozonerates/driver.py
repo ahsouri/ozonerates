@@ -91,7 +91,7 @@ class ozonerates(object):
         '''
            Forward estimation of PO3 using LASSO regression output (lasso_piecewise_4group.mat)
         '''
-        self.PO3_output_empirical = PO3est_empirical(
+        self.PO3_output = PO3est_empirical(
             no2_path, hcho_path, startdate, enddate, num_job=num_job)
 
     def po3estimate_dnn(self, no2_path, hcho_path, startdate, enddate, num_job=1):
@@ -99,20 +99,20 @@ class ozonerates(object):
            Forward estimation of PO3 using DNN
         '''
 
-        self.PO3_output_dnn = PO3est_DNN(
+        self.PO3_output = PO3est_DNN(
             no2_path, hcho_path, startdate, enddate, num_job=num_job)
 
     def reporting(self, fname: str, folder='report'):
         '''
            Making pdf reports
         '''
-        report(self.PO3_output_dnn, fname, folder)
+        report(self.PO3_output, fname, folder)
 
     def writenc(self, fname: str, folder='diag'):
         '''
            Making nc diags
         '''
-        write_to_nc_product(self.PO3_output_dnn, fname, folder)
+        write_to_nc_product(self.PO3_output, fname, folder)
 
 
 # testing
