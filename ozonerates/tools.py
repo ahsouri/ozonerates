@@ -359,7 +359,7 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
             attributes = {
                 'standard_name': 'PO3_NO2',
                 'long_name': 'PO3_NO2',
-                'comment': 'NO2 contributions to ozone production rates within planetary boundary layer derived from satellite observations',
+                'comment': 'ozone production rates sensitivity to NO2 within planetary boundary layer derived from satellite observations',
                 'units': 'ppbv hr-1',
                 'valid_min': -100.0,
                 'valid_max':  100.0
@@ -371,7 +371,7 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
             attributes = {
                 'standard_name': 'PO3_HCHO',
                 'long_name': 'PO3_HCHO',
-                'comment': 'HCHO contributions to ozone production rates within planetary boundary layer derived from satellite observations',
+                'comment': 'ozone production rates sensitivity to HCHO within planetary boundary layer derived from satellite observations',
                 'units': 'ppbv hr-1',
                 'valid_min': -100.0,
                 'valid_max':  100.0
@@ -384,7 +384,7 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
             attributes = {
                 'standard_name': 'PO3_Js',
                 'long_name': 'PO3_Js',
-                'comment': 'J-values net contributions to ozone production rates within planetary boundary layer derived from satellite observations',
+                'comment': 'ozone production rates sensitivity to J-values within planetary boundary layer derived from satellite observations',
                 'units': 'ppbv hr-1',
                 'valid_min': -100.0,
                 'valid_max':  100.0
