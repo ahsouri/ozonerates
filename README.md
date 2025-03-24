@@ -10,4 +10,5 @@ Souri, A. H., González Abad, G., Wolfe, G. M., Verhoelst, T., Vigouroux, C., Pi
 # tips
 if you have any questions regarding this tool, please reach out to the developer: ahsouri@gmail.com
 
-# Please consider acknowledging this tool and the developers if it has a noticeable impact on your project.
+# Note
+Please consider acknowledging this tool and the developers if it has a noticeable impact on your project.
