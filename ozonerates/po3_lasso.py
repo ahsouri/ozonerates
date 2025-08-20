@@ -154,7 +154,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         # we can't handle negative values in this algorithm
         NO2_ppbv = np.abs(NO2_ppbv)
         HCHO_ppbv = np.abs(HCHO_ppbv)
-
+        FNR = HCHO_ppbv/NO2_ppbv
         # taking care of random and sys errors
         NO2_ppbv_err_rand = VCD_NO2_err*PBL_no2_factor
         HCHO_ppbv_err_rand = VCD_HCHO_err*PBL_form_factor
@@ -209,7 +209,7 @@ def PO3est_empirical(no2_path, hcho_path, startdate, enddate, num_job=1):
         PO3 = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         PO3_err = np.zeros((np.shape(FNR)[0], np.shape(FNR)[1], 5))*np.nan
         # apply a monte-carlo way to approximate errors in PO3 estimates
-        n_member = 10000
+        n_member = 5000
         output = Parallel(n_jobs=num_job)(delayed(loop_estimator)(
             J4[i, j], J1[i, j], HCHO_ppbv[i, j], NO2_ppbv[i, j], HCHO_ppbv_err_rand[i, j], NO2_ppbv_err_rand[i, j], COEFFs, COEFF0s, n_member) for i in range(0, np.shape(FNR)[0]) for j in range(0, np.shape(FNR)[1]))
         output = np.array(output)

@@ -359,7 +359,7 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
             attributes = {
                 'standard_name': 'PO3_NO2',
                 'long_name': 'PO3_NO2',
-                'comment': 'NO2 contributions to ozone production rates within planetary boundary layer derived from satellite observations',
+                'comment': 'ozone production rates sensitivity to NO2 within planetary boundary layer derived from satellite observations',
                 'units': 'ppbv hr-1',
                 'valid_min': -100.0,
                 'valid_max':  100.0
@@ -371,7 +371,7 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
             attributes = {
                 'standard_name': 'PO3_HCHO',
                 'long_name': 'PO3_HCHO',
-                'comment': 'HCHO contributions to ozone production rates within planetary boundary layer derived from satellite observations',
+                'comment': 'ozone production rates sensitivity to HCHO within planetary boundary layer derived from satellite observations',
                 'units': 'ppbv hr-1',
                 'valid_min': -100.0,
                 'valid_max':  100.0
@@ -379,20 +379,20 @@ def write_to_nc_product(data, output_file, output_folder='diag'):
             writer.create_variable('PO3_HCHO', datatype=np.float32, dimensions=('time', 'longitude', 'latitude'),
                                    values=data.hcho_vmr_contrib, attributes=attributes,
                                    least_significant_digig=2)
-            '''
-            # Create other contributions to ozone production variable
+
+            # Create Jvalue contributions to ozone production variable
             attributes = {
-                'standard_name': 'PO3_other',
-                'long_name': 'PO3_other',
-                'comment': 'other net contributions to ozone production rates within planetary boundary layer derived from satellite observations',
+                'standard_name': 'PO3_Js',
+                'long_name': 'PO3_Js',
+                'comment': 'ozone production rates sensitivity to J-values within planetary boundary layer derived from satellite observations',
                 'units': 'ppbv hr-1',
                 'valid_min': -100.0,
                 'valid_max':  100.0
             }
-            writer.create_variable('PO3_other',datatype=np.float32,dimensions=(),
-                                   values=np.random.random(test_shape)*100.0,attributes=attributes,
+            writer.create_variable('PO3_Js',datatype=np.float32,dimensions=('time', 'longitude', 'latitude'),
+                                   values=data.jno2_contrib+data.jo1d_contrib,attributes=attributes,
                                    least_significant_digig=2)
-            '''
+
             # Create ozone production random error variable
             attributes = {
                 'standard_name': 'PO3_error_rand',
