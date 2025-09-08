@@ -974,7 +974,7 @@ class readers(object):
         lon_grid = np.arange(lon1, lon2+gridsize, gridsize)
         lat_grid = np.arange(lat1, lat2+gridsize, gridsize)
         self.lons_grid, self.lats_grid = np.meshgrid(
-            lon_grid.astype('float16'), lat_grid.astype('float16'))
+            lon_grid, lat_grid)
 
     def add_satellite_data(self, product_name: str, product_dir: Path):
         '''
