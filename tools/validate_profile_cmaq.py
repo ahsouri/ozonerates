@@ -101,7 +101,6 @@ def aircraft_aeromma_reader(filename: str, NO2_string: str, HCHO_string: str):
     # convert doy and utc to datetime
     date = []
     date = pd.to_datetime(data["Time"]).to_list()
-    print(np.unique(profile_num))
     # return a structure
     return aircraft_data(lat, lon, date, HCHO_ppbv, NO2_ppbv, altp, profile_num)
 
@@ -133,7 +132,7 @@ def cmaq_reader_core(cmaq_target_file,met_file_3d_file,met_file_2d_file,grd_file
         cmaq_data = ctm_model(lat, lon, time, gas_no2, gas_hcho, prs, [], ZL, PBLH, 'CMAQ')
         return cmaq_data
 
-def cmaq_reader(dir_mcip: str, dir_cmaq: str, YYYYMM: str) -> list:
+def cmaq_reader(dir_mcip: str, dir_cmaq: str, YYYYMMDD: str) -> list:
     '''
        MINDS reader
        Inputs:
@@ -143,14 +142,14 @@ def cmaq_reader(dir_mcip: str, dir_cmaq: str, YYYYMM: str) -> list:
              minds_fields [ctm_model]: a dataclass format
     '''
     # read meteorological and chemical fields
-    cmaq_target_files = sorted(glob.glob(dir_cmaq + "/CCTM_CONC_*" + YYYYMM +  "*.nc"))
+    cmaq_target_files = sorted(glob.glob(dir_cmaq + "/CCTM_CONC_*" + YYYYMMDD +  "*.nc"))
     grd_files_2d = sorted(
             glob.glob(dir_mcip + "/GRIDCRO2D_*" + \
-        YYYYMM +  "*"))
+        YYYYMMDD +  "*"))
     met_files_2d = sorted(
-            glob.glob(dir_mcip + "/METCRO2D_*" + YYYYMM  + "*"))
+            glob.glob(dir_mcip + "/METCRO2D_*" + YYYYMMDD  + "*"))
     met_files_3d = sorted(
-            glob.glob(dir_mcip + "/METCRO3D_*" + YYYYMM  + "*"))
+            glob.glob(dir_mcip + "/METCRO3D_*" + YYYYMMDD  + "*"))
     if len(cmaq_target_files) != len(met_files_3d):
             raise Exception(
                 "the data are not consistent")
@@ -159,6 +158,8 @@ def cmaq_reader(dir_mcip: str, dir_cmaq: str, YYYYMM: str) -> list:
     outputs = []
     for k in range(len(met_files_3d)):
         outputs.append(cmaq_reader_core(cmaq_target_files[k],met_files_3d[k],met_files_2d[k],grd_files_2d[k]))
+
+    return outputs
 
 def colocate(ctmdata, airdata):
     '''
@@ -200,18 +201,25 @@ def colocate(ctmdata, airdata):
     ctm_mapped_pblh = []
     ctm_mapped_ZL = []
     for t1 in range(0, np.size(airdata.time)):
-        # for t1 in range(0, 2500):
+        #for t1 in range(0, 2500):
+        if np.isnan(airdata.lat[t1]):
+           ctm_mapped_pressure.append(np.nan)
+           #ctm_mapped_pressure_edge.append(ctm_pressure_edge_new)
+           ctm_mapped_pblh.append(np.nan)
+           ctm_mapped_no2.append(np.nan)
+           ctm_mapped_hcho.append(np.nan)
+           ctm_mapped_ZL.append(np.nan)
+           continue
         # find the closest day
         closest_index = np.argmin(np.abs(time_aircraft[t1] - time_ctm))
         # find the closest hour (this only works for 3-hourly frequency)
-        closest_index_day = int(np.floor(closest_index/8.0))
-        closest_index_hour = int(closest_index % 8)
+        closest_index_day = int(np.floor(closest_index/25.0))
+        closest_index_hour = int(closest_index % 25)
         print("The closest MINDS file used for the aircraft at " + str(airdata.time[t1]) +
               " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
         ctm_mid_pressure = ctmdata[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
         )
-        ctm_pressure_edge = ctmdata[closest_index_day].pressure_edge[closest_index_hour, :, :, :].squeeze(
-        )
+        #ctm_pressure_edge = ctmdata[closest_index_day].pressure_edge[closest_index_hour, :, :, :].squeeze()
         ctm_no2_profile = ctmdata[closest_index_day].gas_profile_no2[closest_index_hour, :, :].squeeze(
         )
         ctm_hcho_profile = ctmdata[closest_index_day].gas_profile_hcho[closest_index_hour, :, :].squeeze(
@@ -232,8 +240,7 @@ def colocate(ctmdata, airdata):
         # picking the right grid
         ctm_mid_pressure_new = ctm_mid_pressure[index_z, index_i, index_j].squeeze(
         )
-        ctm_pressure_edge_new = ctm_pressure_edge[index_z, index_i, index_j].squeeze(
-        )
+        #ctm_pressure_edge_new = ctm_pressure_edge[index_z, index_i, index_j].squeeze()
         ctm_no2_profile_new = ctm_no2_profile[index_z,
                                               index_i, index_j].squeeze()
         ctm_hcho_profile_new = ctm_hcho_profile[index_z, index_i, index_j].squeeze(
@@ -244,7 +251,7 @@ def colocate(ctmdata, airdata):
         # in case we have more than one grid box cloes to the aircraft point
         if np.size(ctm_mid_pressure_new) > 1:
             ctm_mid_pressure_new = np.mean(ctm_mid_pressure_new)
-            ctm_pressure_edge_new = np.mean(ctm_pressure_edge_new)
+            #ctm_pressure_edge_new = np.mean(ctm_pressure_edge_new)
             ctm_no2_profile_new = np.mean(ctm_no2_profile_new)
             ctm_hcho_profile_new = np.mean(ctm_hcho_profile_new)
             ctm_ZL_new = np.mean(ctm_ZL_new)
@@ -253,7 +260,7 @@ def colocate(ctmdata, airdata):
             ctm_PBLH_new = np.mean(ctm_PBLH_new)
 
         ctm_mapped_pressure.append(ctm_mid_pressure_new)
-        ctm_mapped_pressure_edge.append(ctm_pressure_edge_new)
+        #ctm_mapped_pressure_edge.append(ctm_pressure_edge_new)
         ctm_mapped_pblh.append(ctm_PBLH_new)
         ctm_mapped_no2.append(ctm_no2_profile_new)
         ctm_mapped_hcho.append(ctm_hcho_profile_new)
@@ -261,7 +268,7 @@ def colocate(ctmdata, airdata):
 
     # converting the lists to numpy array
     ctm_mapped_pressure = np.array(ctm_mapped_pressure)
-    ctm_mapped_pressure_edge = np.array(ctm_mapped_pressure_edge)
+    #ctm_mapped_pressure_edge = np.array(ctm_mapped_pressure_edge)
     ctm_mapped_pblh = np.array(ctm_mapped_pblh)
     ctm_mapped_no2 = np.array(ctm_mapped_no2)
     ctm_mapped_hcho = np.array(ctm_mapped_hcho)
@@ -324,7 +331,8 @@ def colocate(ctmdata, airdata):
         # throw out bad data
         ctm_no2_chosen[np.isnan(aircraft_NO2_unique)] = np.nan
         ctm_hcho_chosen[np.isnan(aircraft_HCHO_unique)] = np.nan
-
+        if np.size(ctm_no2_chosen) == 0:
+           continue
         # map aircraft and ctm  vertical grid into a regular vertical grid
         regular_grid_edge = np.flip(np.arange(450, 1015+20, 10))
         regular_grid_mid = np.zeros(np.size(regular_grid_edge)-1)
@@ -432,7 +440,6 @@ def colocate_nonspiral(ctmdata, airdata):
                              60.0/24.0 + t.second/3600.0/24.0)
 
     time_aircraft = np.array(time_aircraft)
-
     # translating ctm data into aircraft location/time
     ctm_mapped_pressure = []
     ctm_mapped_pressure_edge = []
@@ -441,18 +448,25 @@ def colocate_nonspiral(ctmdata, airdata):
     ctm_mapped_pblh = []
     ctm_mapped_ZL = []
     for t1 in range(0, np.size(airdata.time)):
+        if np.isnan(airdata.lat[t1]):
+           ctm_mapped_pressure.append(-999.0)
+           #ctm_mapped_pressure_edge.append(ctm_pressure_edge_new)
+           ctm_mapped_pblh.append(-999.0)
+           ctm_mapped_no2.append(-999.0)
+           ctm_mapped_hcho.append(-999.0)
+           ctm_mapped_ZL.append(-999.0)
+           continue
         # for t1 in range(0, 2500):
         # find the closest day
         closest_index = np.argmin(np.abs(time_aircraft[t1] - time_ctm))
         # find the closest hour (this only works for 3-hourly frequency)
-        closest_index_day = int(np.floor(closest_index/8.0))
-        closest_index_hour = int(closest_index % 8)
-        print("The closest MINDS file used for the aircraft at " + str(airdata.time[t1]) +
+        closest_index_day = int(np.floor(closest_index/25.0))
+        closest_index_hour = int(closest_index % 25)
+        print("The closest CMAQ file used for the aircraft at " + str(airdata.time[t1]) +
               " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
         ctm_mid_pressure = ctmdata[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
         )
-        ctm_pressure_edge = ctmdata[closest_index_day].pressure_edge[closest_index_hour, :, :, :].squeeze(
-        )
+        #ctm_pressure_edge = ctmdata[closest_index_day].pressure_edge[closest_index_hour, :, :, :].squeeze()
         ctm_no2_profile = ctmdata[closest_index_day].gas_profile_no2[closest_index_hour, :, :].squeeze(
         )
         ctm_hcho_profile = ctmdata[closest_index_day].gas_profile_hcho[closest_index_hour, :, :].squeeze(
@@ -473,8 +487,7 @@ def colocate_nonspiral(ctmdata, airdata):
         # picking the right grid
         ctm_mid_pressure_new = ctm_mid_pressure[index_z, index_i, index_j].squeeze(
         )
-        ctm_pressure_edge_new = ctm_pressure_edge[index_z, index_i, index_j].squeeze(
-        )
+        #ctm_pressure_edge_new = ctm_pressure_edge[index_z, index_i, index_j].squeeze()
         ctm_no2_profile_new = ctm_no2_profile[index_z,
                                               index_i, index_j].squeeze()
         ctm_hcho_profile_new = ctm_hcho_profile[index_z, index_i, index_j].squeeze(
@@ -485,7 +498,7 @@ def colocate_nonspiral(ctmdata, airdata):
         # in case we have more than one grid box cloes to the aircraft point
         if np.size(ctm_mid_pressure_new) > 1:
             ctm_mid_pressure_new = np.mean(ctm_mid_pressure_new)
-            ctm_pressure_edge_new = np.mean(ctm_pressure_edge_new)
+            #ctm_pressure_edge_new = np.mean(ctm_pressure_edge_new)
             ctm_no2_profile_new = np.mean(ctm_no2_profile_new)
             ctm_hcho_profile_new = np.mean(ctm_hcho_profile_new)
             ctm_ZL_new = np.mean(ctm_ZL_new)
@@ -494,7 +507,7 @@ def colocate_nonspiral(ctmdata, airdata):
             ctm_PBLH_new = np.mean(ctm_PBLH_new)
 
         ctm_mapped_pressure.append(ctm_mid_pressure_new)
-        ctm_mapped_pressure_edge.append(ctm_pressure_edge_new)
+        #ctm_mapped_pressure_edge.append(ctm_pressure_edge_new)
         ctm_mapped_pblh.append(ctm_PBLH_new)
         ctm_mapped_no2.append(ctm_no2_profile_new)
         ctm_mapped_hcho.append(ctm_hcho_profile_new)
@@ -502,7 +515,7 @@ def colocate_nonspiral(ctmdata, airdata):
 
     # converting the lists to numpy array
     ctm_mapped_pressure = np.array(ctm_mapped_pressure)
-    ctm_mapped_pressure_edge = np.array(ctm_mapped_pressure_edge)
+    #ctm_mapped_pressure_edge = np.array(ctm_mapped_pressure_edge)
     ctm_mapped_pblh = np.array(ctm_mapped_pblh)
     ctm_mapped_no2 = np.array(ctm_mapped_no2)
     ctm_mapped_hcho = np.array(ctm_mapped_hcho)
@@ -519,12 +532,11 @@ def colocate_nonspiral(ctmdata, airdata):
     output["PBLH"] = ctm_mapped_pblh
     output["Spiral_num"] = []
     output["time"] = time_aircraft
-    output["lat"] = time_aircraft
     output["lon"] = airdata.lon
-    output["lon"] = airdata.lat
+    output["lat"] = airdata.lat
     output["ZL"] = ctm_mapped_ZL
     savemat('./AEROMMA_test.mat', output)
-
+    return None
 
 def to_mat(spiral_data, filename):
 
@@ -560,9 +572,9 @@ def to_mat(spiral_data, filename):
         time_spiral_lst = time_spiral_utc + \
             datetime.timedelta(seconds=int(seconds_lon))
         time_leo_lst_approximate_lb = datetime.datetime(
-            int(year_spiral), int(month_spiral), int(day_spiral), 12, 15, 0)
+            int(year_spiral), int(month_spiral), int(day_spiral), 12, 0, 0)
         time_leo_lst_approximate_up = datetime.datetime(
-            int(year_spiral), int(month_spiral), int(day_spiral), 15, 10, 0)
+            int(year_spiral), int(month_spiral), int(day_spiral), 23, 59, 0)
         # if +- 1.5 hours from 1:45 LST
         if (time_spiral_lst >= time_leo_lst_approximate_lb) and (time_spiral_lst <= time_leo_lst_approximate_up):
             print(datetime.datetime.strptime(
@@ -586,8 +598,8 @@ def to_mat(spiral_data, filename):
             Mair = 28.97e-3
             g = 9.80665
             N_A = 6.02214076e23
-            mask_PBL = spiral_data["pressure_mid"][spiral,
-                                                   :] >= spiral_data["PBLH"][spiral]
+            mask_PBL = spiral_data["ZL"][spiral,
+                                                   :] <= spiral_data["PBLH"][spiral]
             mask_PBL = np.multiply(mask_PBL, 1.0).squeeze()
             mask_PBL[mask_PBL != 1.0] = np.nan
             no2_conversion_air.append(
@@ -660,8 +672,17 @@ def to_mat(spiral_data, filename):
 
 
 if __name__ == "__main__":
-    # T
-    aircraft_path = 'tools/AEROMMA_20230801_Merge.csv'
-    aircraft_data1 = aircraft_aeromma_reader(
-        aircraft_path, 'NO2_NNOx', 'CH2O_ISAF')
-    minds_data = cmaq_reader('./minds/', '2023,')
+    aeromma_files = sorted(glob.glob("./aeromma_data/A*.csv"))
+    for file in aeromma_files:
+        try:
+           aircraft_data1 = aircraft_aeromma_reader(
+               file, 'NO2_LIF', 'CH2O_ISAF')
+           split_file = file.split('_')
+           cmaq_data = cmaq_reader('./cmaq_test/','./cmaq_test/', split_file[2])
+           spiral_data = colocate(cmaq_data, aircraft_data1)
+           to_mat(spiral_data, 'output_aeromma_' + split_file[2] + '_PM.mat')
+           spiral_data = []
+           cmaq_data = []
+           aircraft_data1 = []
+        except:
+           print("something bad happened")

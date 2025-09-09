@@ -39,6 +39,7 @@ if month != 12:
            output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
            '-01', str(year) + '-' + f"{month+1:02}" + '-01', num_job=num_job)
    if algorithm == 'LASSO':
+      print("running LASSO")
       ozonerates_obj.po3estimate_empirical(
            output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
            '-01', str(year) + '-' + f"{month+1:02}" + '-01', num_job=num_job)
@@ -54,7 +55,7 @@ else:
 
 ozonerates_obj.reporting("PO3_estimates_" + str(year) + f"{month:02}",folder=output_pdf_dir)
 if sensor == 'OMI':
-   output_nc_name = "PO3_Global__OMI_____" + str(year) + f"{month:02}" + "_" + strftime('%Y-%m-%dT%H:%M:%SZ', gmtime()) + ".nc"
+   output_nc_name = "PO3_Global__OMI_____" + str(year) + f"{month:02}" + "_" + strftime('%Y%m%dT%H%M%SZ', gmtime()) + ".nc"
 else:
-   output_nc_name = "PO3_Global__TROPOMI_" + str(year) + f"{month:02}" + "_" + strftime('%Y-%m-%dT%H:%M:%SZ', gmtime()) + ".nc"
+   output_nc_name = "PO3_Global__TROPOMI_" + str(year) + f"{month:02}" + "_" + strftime('%Y%m%dT%H%M%SZ', gmtime()) + ".nc"
 ozonerates_obj.writenc(output_nc_name,folder=output_nc_po3_dir)
