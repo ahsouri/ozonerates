@@ -15,7 +15,7 @@ class ozonerates(object):
         pass
 
     def read_data(self, ctm_type: str, ctm_freq: str, sensor: str, ctm_path: Path, sat_path: list, YYYYMM: str,
-                  output_folder='diag', read_ak=False, trop=True, num_job=1):
+                  output_folder='diag', read_ak=False, trop=True, num_job=1, tempo_hour=None):
         """
         Reads GMI/MINDS and OMI/TROPOMI NO2 and HCHO data and generates NetCDF files.
 
@@ -41,7 +41,7 @@ class ozonerates(object):
         # Process NO2 data
         reader_obj.add_satellite_data(f"{sensor}_NO2", sat_path[0])
         reader_obj.read_satellite_data(
-            YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
+            YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job, tempo_hour=tempo_hour)
         self.satno2 = reader_obj.sat_data
         self.o3paramno2 = ctmpost(self.satno2, self.ctmdata, ctm_freq)
 

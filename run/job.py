@@ -30,6 +30,41 @@ ozonerates_obj = ozonerates()
 sat_path = []
 sat_path.append(Path(sat_dir_no2))
 sat_path.append(Path(sat_dir_hcho))
+
+# if TEMPO is selected
+if sensor == "TEMPO":
+   for hour in range(0,24):
+       try:
+            ozonerates_obj.read_data(ctm_type, ctm_freq, str(sensor), Path(ctm_dir),
+                             sat_path, str(year) + f"{month:02}",output_folder = output_nc_inputparam_dir,
+                             read_ak=False, trop=True, num_job=num_job)
+            if month != 12:
+               if algorithm == 'DNN':
+                 ozonerates_obj.po3estimate_dnn(
+                    output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
+                    '-01', str(year) + '-' + f"{month+1:02}" + '-01', num_job=num_job)
+               if algorithm == 'LASSO':
+                 ozonerates_obj.po3estimate_empirical(
+                    output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
+                    '-01', str(year) + '-' + f"{month+1:02}" + '-01', num_job=num_job)
+            else:
+               if algorithm == 'DNN':
+                  ozonerates_obj.po3estimate_dnn(
+                    output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
+                    '-01', str(year+1) + '-01' + '-01', num_job=num_job)
+               if algorithm == 'LASSO':
+                  ozonerates_obj.po3estimate_empirical(
+                    output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
+                    '-01', str(year+1) + '-01' + '-01', num_job=num_job)
+
+            ozonerates_obj.reporting("PO3_estimates_" + str(year) + f"{month:02}" '_' + str(hour) + 'UTC',folder=output_pdf_dir)
+
+            output_nc_name = "PO3_TEMPO____" + str(year) + f"{month:02}" + '_' + str(hour) + 'UTC' + "_" + strftime('%Y-%m-%dT%H:%M:%SZ', gmtime()) + ".nc"
+            ozonerates_obj.writenc(output_nc_name,folder=output_nc_po3_dir)
+       except Exception as e:
+         print(f"Error processing hour {hour}: {e}")
+   exit() # we should skip the rest because those are for LEOs
+
 ozonerates_obj.read_data(ctm_type, ctm_freq, str(sensor), Path(ctm_dir),
                              sat_path, str(year) + f"{month:02}",output_folder = output_nc_inputparam_dir,
                              read_ak=False, trop=True, num_job=num_job)

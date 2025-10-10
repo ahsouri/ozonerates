@@ -157,13 +157,13 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         # linear interpolation (extrapolation is not allowed = NaN)
         J4 = interpn((SZAhybrid.flatten(), ALBhybrid.flatten(), O3Chybrid.flatten(), ALThybrid.flatten()),
                      J4, (SZA.flatten(), surface_albedo_no2.flatten(),
-                          O3col.flatten(), surface_alt.flatten()),
+                          O3col.flatten(), surface_alt.flatten()+PBLH.flatten()/2.0),
                      method="linear", bounds_error=False, fill_value=np.nan)
         J4 = np.reshape(J4, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
         # for J1, we use surface HCHO albedo because it's located at a smaller wavelength
         J1 = interpn((SZAhybrid.flatten(), ALBhybrid.flatten(), O3Chybrid.flatten(), ALThybrid.flatten()),
                      J1, (SZA.flatten(), surface_albedo_hcho.flatten(),
-                          O3col.flatten(), surface_alt.flatten()),
+                          O3col.flatten(), surface_alt.flatten()+PBLH.flatten()/2.0),
                      method="linear", bounds_error=False, fill_value=np.nan)
         J1 = np.reshape(J1, (np.shape(NO2_ppbv)[0], np.shape(NO2_ppbv)[1]))
 
@@ -223,7 +223,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1):
         # error estimates (sys)
         # add the estimator error here
         PO3_err2_sys = ((SNO2/NO2_ppbv)**2)*(NO2_ppbv_err_sys**2) + \
-            ((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err_sys**2) + 0.78**2
+            ((SHCHO/HCHO_ppbv)**2)*(HCHO_ppbv_err_sys**2) + 0.78
         # append inputs and PO3_estimates daily
         PO3_estimates.append(PO3)
         inputs["FNR"].append(np.abs(HCHO_ppbv/NO2_ppbv))

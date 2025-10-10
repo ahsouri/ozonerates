@@ -32,6 +32,23 @@ def _get_nc_attr(filename, var):
     nc_fid.close()
     return attr
 
+def _get_nc_attr_group_tempo(fname):
+    # getting attributes for mopitt
+    nc_f = fname
+    nc_fid = Dataset(nc_f, 'r')
+    attr = {}
+    for attrname in nc_fid.groups['support_data'].variables["surface_pressure"].ncattrs():
+        attr[attrname] = getattr(
+            nc_fid.groups['support_data'].variables["surface_pressure"], attrname)
+    nc_fid.close()
+    return attr
+
+def _remove_empty_files(filelist:list):
+    # remove empty files from a list
+    for file in filelist:
+        if os.path.getsize(file)<100:
+            filelist.remove(file)
+    return filelist
 
 def _read_group_nc(filename, group, var):
     # reading nc files with a group structure
@@ -891,6 +908,232 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=False) -> sa
     except:
         return None
 
+def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
+    '''
+       TEMPO NO2 L2 reader
+       Inputs:
+             fname [str]: the name path of the L2 file
+             ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
+       Output:
+             tempo_no2 [satellite_amf]: a dataclass format (see config.py)
+    '''
+    # hcho reader
+    print("Currently reading: " + fname.split('/')[-1])
+    # read time
+    try: #level2
+       time = _read_group_nc(fname, ['geolocation'], 'time')
+    except: #level3
+       time = _read_nc(fname, 'time')
+    time = np.squeeze(np.nanmean(time))
+    time = datetime.datetime(
+        1980, 1, 6) + datetime.timedelta(seconds=int(time))
+    #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
+    # read lat/lon at centers
+    try: # level 2
+       latitude_center = _read_group_nc(
+           fname, ['geolocation'], 'latitude').astype('float32')
+       longitude_center = _read_group_nc(
+           fname, ['geolocation'], 'longitude').astype('float32')
+       SZA = _read_group_nc(
+           fname, ['geolocation'], 'solar_zenith_angle').astype('float32')
+    except: # level 3
+       latitude_center = _read_nc(
+           fname,'latitude').astype('float32')
+       longitude_center = _read_nc(
+           fname, 'longitude').astype('float32')
+       longitude_center,latitude_center = np.meshgrid(longitude_center,latitude_center)
+    '''
+      tempo has nonphysical values at the edge of first or last scanline making the interpolation fail
+      so I will replace them with an arbiatry area outside of the US. They will not be considered in the
+      analysis, but we need this ad-hoc fix for the interpolation to work.
+    '''
+    lat_corrected = latitude_center.copy()
+    lon_corrected = longitude_center.copy()
+    invalid_mask = (np.abs(lat_corrected) > 90.0) | (np.abs(lon_corrected) > 360.0)
+    n_invalid = np.sum(invalid_mask)
+    if n_invalid != 0.0:
+       lat_sequence = 35.0 + np.arange(n_invalid) * 0.001
+       lon_sequence = -140.0 + np.arange(n_invalid) * 0.001
+       # Replace invalid values
+       lat_corrected[invalid_mask] = lat_sequence
+       lon_corrected[invalid_mask] = lon_sequence
+    latitude_center  = lat_corrected
+    longitude_center = lon_corrected
+    # read no2
+    if trop == False:
+        vcd = _read_group_nc(
+            fname, ['product'], 'vertical_column_troposphere')+\
+              _read_group_nc(
+            fname, ['product'], 'vertical_column_stratosphere')
+        try: # level2
+           amf = _read_group_nc(fname, ['support_data'], 'amf')
+        except: # level3
+           amf = _read_group_nc(fname, ['support_data'], 'amf_total')
+        # read the precision
+        uncertainty = _read_group_nc(fname, ['support_data'],
+                                     'vertical_column_total_uncertainty')
+    else:
+        vcd = _read_group_nc(
+            fname, ['product'], 'vertical_column_troposphere')
+        amf = _read_group_nc(fname, ['support_data'], 'amf_troposphere')
+        # read the precision
+        uncertainty = _read_group_nc(fname, ['product'],
+                                     'vertical_column_troposphere_uncertainty')
+    vcd = (vcd*1e-15).astype('float16')
+    uncertainty = (uncertainty*1e-15).astype('float16')
+    # read quality flag
+    quality_flag_temp = _read_group_nc(
+        fname, ['product'], 'main_data_quality_flag')
+    eff_cloud_fraction = _read_group_nc(fname, [
+                        'support_data'], 'eff_cloud_fraction')
+    quality_flag = np.ones_like(quality_flag_temp)*-100.0
+    quality_flag[quality_flag_temp==0.0]=1.0
+    quality_flag[eff_cloud_fraction>=0.2]=-100.0
+    # read pressures for SWs
+    surface_pressure_atr = _get_nc_attr_group_tempo(fname)
+    eta_a = surface_pressure_atr["Eta_A"]
+    eta_b = surface_pressure_atr["Eta_B"]
+    ps = _read_group_nc(fname, [
+                        'support_data'], 'surface_pressure').astype('float16')
+    p_mid = np.zeros(
+        (72, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
+    if read_ak == True:
+        SWs = _read_group_nc(fname, [
+                        'support_data'], 'scattering_weights').astype('float16')
+    else:
+        SWs = np.empty((1))
+    # assiging p_mid
+    for z in range(0, 72):
+        p_mid[z, :, :] = 0.5*(eta_a[z]+eta_b[z]*ps[:, :] +
+                              eta_a[z+1]+eta_b[z+1]*ps[:, :])
+    # remove bad SWs
+    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+                 (SWs > 100.0) | (SWs < 0.0))] = 0.0
+    # read the tropopause pressure
+    if trop == True:
+        tropopause = _read_group_nc(
+            fname, ['support_data'], 'tropopause_pressure').astype('float16')
+    else:
+        tropopause = np.empty((1))
+
+    terrain_height =  _read_group_nc(
+            fname, ['support_data'], 'terrain_height').astype('float32')
+    surface_albedo =  _read_group_nc(
+            fname, ['support_data'], 'albedo').astype('float32')
+    # populate sat class
+    tempo_no2 = satellite_amf(vcd, amf, time, tropopause, latitude_center,
+                            longitude_center, [], [], uncertainty, quality_flag, [], SWs, [], [], [],
+                            surface_albedo, SZA, terrain_height)
+
+    # interpolation
+    if (ctm_models_coordinate is not None):
+        print('Currently interpolating ...')
+        grid_size = 0.05  # degree
+        tempo_no2 = interpolator(
+            2, grid_size, tempo_no2, ctm_models_coordinate, flag_thresh=0.0)
+    # return
+    return tempo_no2
+
+
+def tempo_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
+    '''
+       TEMPO HCHO L2 reader
+       Inputs:
+             fname [str]: the name path of the L2 file
+             ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
+       Output:
+             tempo_hcho [satellite_amf]: a dataclass format (see config.py)
+    '''
+    # hcho reader
+    print("Currently reading: " + fname.split('/')[-1])
+    # read time
+    time = _read_group_nc(fname, ['geolocation'], 'time')
+    time = np.squeeze(np.nanmean(time))
+    time = datetime.datetime(
+        1980, 1, 6) + datetime.timedelta(seconds=int(time))
+    #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
+    # read lat/lon at centers
+    latitude_center = _read_group_nc(
+        fname, ['geolocation'], 'latitude').astype('float32')
+    longitude_center = _read_group_nc(
+        fname, ['geolocation'], 'longitude').astype('float32')
+    SZA = _read_group_nc(
+        fname, ['geolocation'], 'solar_zenith_angle').astype('float32')
+    
+    '''
+      tempo has nonphysical values at the edge of first or last scanline making the interpolation fail
+      so I will replace them with an arbiatry area outside of the US. They will not be considered in the
+      analysis, but we need this ad-hoc fix for the interpolation to work.
+    '''
+    lat_corrected = latitude_center.copy()
+    lon_corrected = longitude_center.copy()
+    invalid_mask = (np.abs(lat_corrected) > 90.0) | (np.abs(lon_corrected) > 360.0)
+    n_invalid = np.sum(invalid_mask)
+    if n_invalid != 0.0:
+       lat_sequence = 35.0 + np.arange(n_invalid) * 0.001
+       lon_sequence = -140.0 + np.arange(n_invalid) * 0.001
+       # Replace invalid values
+       lat_corrected[invalid_mask] = lat_sequence
+       lon_corrected[invalid_mask] = lon_sequence
+    latitude_center  = lat_corrected
+    longitude_center = lon_corrected
+    # read hcho
+    vcd = _read_group_nc(
+        fname, ['product'], 'vertical_column')
+    amf = _read_group_nc(fname, ['support_data'], 'amf')
+    # read the precision
+    uncertainty = _read_group_nc(fname, ['product'],
+                                     'vertical_column_uncertainty')
+    vcd = (vcd*1e-15).astype('float16')
+    uncertainty = (uncertainty*1e-15).astype('float16')
+    # read quality flag
+    quality_flag_temp = _read_group_nc(
+        fname, ['product'], 'main_data_quality_flag')
+    eff_cloud_fraction = _read_group_nc(fname, [
+                        'support_data'], 'eff_cloud_fraction')
+    quality_flag = np.ones_like(quality_flag_temp)*-100.0
+    quality_flag[quality_flag_temp==0.0]=1.0
+    quality_flag[eff_cloud_fraction>=0.2]= -100.0
+    # read pressures for SWs
+    surface_pressure_atr = _get_nc_attr_group_tempo(fname)
+    eta_a = surface_pressure_atr["Eta_A"]
+    eta_b = surface_pressure_atr["Eta_B"]
+    ps = _read_group_nc(fname, [
+                        'support_data'], 'surface_pressure').astype('float16')
+    p_mid = np.zeros(
+        (72, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
+    if read_ak == True:
+        SWs = _read_group_nc(fname, [
+                        'support_data'], 'scattering_weights').astype('float16')
+    else:
+        SWs = np.empty((1))
+    # assiging p_mid
+    for z in range(0, 72):
+        p_mid[z, :, :] = 0.5*(eta_a[z]+eta_b[z]*ps[:, :] +
+                              eta_a[z+1]+eta_b[z+1]*ps[:, :])
+    # remove bad SWs
+    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+                 (SWs > 100.0) | (SWs < 0.0))] = 0.0
+    # read the tropopause pressure
+    tropopause = np.empty((1))
+    terrain_height =  _read_group_nc(
+            fname, ['support_data'], 'terrain_height').astype('float32')
+    surface_albedo =  _read_group_nc(
+            fname, ['support_data'], 'albedo').astype('float32')
+    # populate sat class
+    tempo_hcho = satellite_amf(vcd, amf, time, tropopause, latitude_center,
+                            longitude_center, [], [], uncertainty, quality_flag, [], SWs, [], [], [],
+                            surface_albedo, SZA, terrain_height)
+    # interpolation
+    if (ctm_models_coordinate is not None):
+        print('Currently interpolating ...')
+        grid_size = 0.05  # degree
+        tempo_hcho = interpolator(
+            2, grid_size, tempo_hcho, ctm_models_coordinate, flag_thresh=0.0)
+    # return
+    return tempo_hcho
 
 def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
     '''
@@ -919,6 +1162,34 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
             L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     return outputs_sat
 
+def tempo_reader(product_dir: str, tempo_hour: int, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
+    '''
+        reading tempo data
+             product_dir [str]: the folder containing the tropomi data
+             satellite_product_name [str]: so far we support:
+                                         "NO2"
+                                         "HCHO"
+             ctm_models_coordinate [dict]: the ctm coordinates
+             YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             trop [bool]: true for considering the tropospheric region only
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
+             num_job [int]: the number of jobs for parallel computation
+        Output [tempo]: the satellite_amf @dataclass
+    '''
+
+    # find L2 files first
+    L2_files = sorted(glob.glob(product_dir + "/TEMPO_*" + "_L*_*" + str(YYYYMM) + f"*T{tempo_hour:02d}*.nc"))
+    #L2_files = sorted(glob.glob(product_dir + "/TEMPO_*" + "_L*_*" + str(YYYYMM) + f"*S{tempo_hour:03d}*.nc"))
+    print("the number of files is " + str(len(L2_files)))
+    L2_files = _remove_empty_files(L2_files)
+    # read the files in parallel
+    if satellite_product_name.split('_')[-1] == 'NO2':
+        outputs_sat = Parallel(n_jobs=num_job)(delayed(tempo_reader_no2)(
+            L2_files[k], trop, ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
+    elif satellite_product_name.split('_')[-1] == 'HCHO':
+        outputs_sat = Parallel(n_jobs=num_job)(delayed(tempo_reader_hcho)(
+            L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
+    return outputs_sat
 
 def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
     '''
@@ -985,6 +1256,8 @@ class readers(object):
                                    TROPOMI_HCHO
                                    OMI_NO2
                                    OMI_HCHO
+                                   TEMPO_NO2
+                                   TEMPO_HCHO
 
                 product_dir  [Path]: a path object describing the path of L2 files
         '''
@@ -1006,7 +1279,7 @@ class readers(object):
         self.ctm_product = product_name
         self.ctm_freq = product_freq
 
-    def read_satellite_data(self, YYYYMM: str, read_ak=True, trop=False, num_job=1):
+    def read_satellite_data(self, YYYYMM: str, read_ak=True, trop=False, num_job=1, tempo_hour=0.0):
         '''
             read L2 satellite data
             Input:
@@ -1026,6 +1299,10 @@ class readers(object):
                                            YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
         elif satellite == 'OMI':
             self.sat_data = omi_reader(self.satellite_product_dir.as_posix(),
+                                       self.satellite_product_name, ctm_models_coordinate,
+                                       YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
+        elif satellite == 'TEMPO':
+            self.sat_data = tempo_reader(self.satellite_product_dir.as_posix(), tempo_hour,
                                        self.satellite_product_name, ctm_models_coordinate,
                                        YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
         else:
