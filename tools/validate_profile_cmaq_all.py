@@ -85,8 +85,10 @@ def aircraft_reader(filename: str, year: int, NO2_string: str, HCHO_string: str)
     return aircraft_data(lat, lon, date, HCHO_ppbv, NO2_ppbv, altp, profile_num)
 
 def aircraft_aeromma_reader(filename: str, NO2_string: str, HCHO_string: str):
-    # read the header
+    # read the data and average hourly
     data = pd.read_csv(filename)
+    data['Time'] = pd.to_datetime(data['Time'])
+    data = data.groupby(pd.Grouper(key='Time', freq='1min')).mean()
     # read the data
     lat = np.array(data["G_LAT"])
     lon = np.array(data["G_LONG"])
@@ -99,8 +101,9 @@ def aircraft_aeromma_reader(filename: str, NO2_string: str, HCHO_string: str):
     altp[altp <= 0] = np.nan
     profile_num = np.array(data["profile_number"])
     # convert doy and utc to datetime
+    data = data.reset_index()
     date = []
-    date = pd.to_datetime(data["Time"]).to_list()
+    date = data["Time"].to_list()
     # return a structure
     return aircraft_data(lat, lon, date, HCHO_ppbv, NO2_ppbv, altp, profile_num)
 
@@ -531,12 +534,25 @@ def colocate_nonspiral(ctmdata, airdata):
     output["dp"] = []
     output["PBLH"] = ctm_mapped_pblh
     output["Spiral_num"] = []
-    output["time"] = time_aircraft
+    output["lon"] = airdata.lon
+    output["lat"] = airdata.lat
+    # cal LST from airdata.time
+    seconds_lon = (airdata.lon*3600)/15
+    time_lst = []
+    for t in range(np.size(seconds_lon)):
+        if np.isnan(seconds_lon[t]):
+           time_lst.append(np.nan)
+           continue
+        time_lst_temp = airdata.time[t] + \
+            datetime.timedelta(seconds=int(seconds_lon[t]))
+        print(time_lst_temp)
+        time_lst.append(time_lst_temp.hour+time_lst_temp.minute/60.0)
+    time_lst = np.array(time_lst)
+    output["time_LST"] = time_lst
     output["lon"] = airdata.lon
     output["lat"] = airdata.lat
     output["ZL"] = ctm_mapped_ZL
-    savemat('./AEROMMA_test.mat', output)
-    return None
+    return output
 
 def to_mat(spiral_data, filename):
 
@@ -674,15 +690,15 @@ def to_mat(spiral_data, filename):
 if __name__ == "__main__":
     aeromma_files = sorted(glob.glob("./aeromma_data/A*.csv"))
     for file in aeromma_files:
-        try:
+           #try:
            aircraft_data1 = aircraft_aeromma_reader(
                file, 'NO2_LIF', 'CH2O_ISAF')
            split_file = file.split('_')
            cmaq_data = cmaq_reader('./cmaq_test/','./cmaq_test/', split_file[2])
-           spiral_data = colocate(cmaq_data, aircraft_data1)
-           to_mat(spiral_data, 'output_aeromma_' + split_file[2] + '_PM.mat')
+           spiral_data = colocate_nonspiral(cmaq_data, aircraft_data1)
+           savemat('output_aeromma_' + split_file[2] + '_FULL_1min.mat',spiral_data)
            spiral_data = []
            cmaq_data = []
            aircraft_data1 = []
-        except:
+           #except:
            print("something bad happened")
