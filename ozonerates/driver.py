@@ -60,10 +60,14 @@ class ozonerates(object):
 
         # Save NO2 data to NetCDF files
         for fno2 in self.o3paramno2:
-            time_no2 = fno2.time.strftime("%Y%m%d_%H%M%S")
+            time_no2 = fno2.time.strftime("%Y%m%d")
+            time_no2_hms = fno2.time.strftime("%H%M%S")
             fno2.surface_albedo = tropomi_albedo(
                 tri, False, fno2.latitude, fno2.longitude, int(YYYYMM[4:]))
-            write_to_nc(fno2, f"PO3inputs_NO2_{time_no2}", output_folder)
+            if tempo_hour is None:
+               write_to_nc(fno2, f"PO3inputs_NO2_{time_no2}_{time_no2_hms}", output_folder)
+            else:
+               write_to_nc(fno2, f"PO3inputs_NO2_{time_no2}_T{tempo_hour:02d}", output_folder)
 
         # Clear temporary data
         self.o3paramno2 = []
@@ -71,7 +75,7 @@ class ozonerates(object):
         # Process HCHO data
         reader_obj.add_satellite_data(f"{sensor}_HCHO", sat_path[1])
         reader_obj.read_satellite_data(
-            YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job)
+            YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job, tempo_hour=tempo_hour)
         self.sathcho = reader_obj.sat_data
         self.o3paramhcho = ctmpost(self.sathcho, self.ctmdata, ctm_freq)
 
@@ -82,10 +86,14 @@ class ozonerates(object):
 
         # Save HCHO data to NetCDF files
         for fhcho in self.o3paramhcho:
-            time_hcho = fhcho.time.strftime("%Y%m%d_%H%M%S")
+            time_hcho = fhcho.time.strftime("%Y%m%d")
+            time_hcho_hms = fhcho.time.strftime("%H%M%S")
             fhcho.surface_albedo = tropomi_albedo(
                 tri, True, fhcho.latitude, fhcho.longitude, int(YYYYMM[4:]))
-            write_to_nc(fhcho, f"PO3inputs_FORM_{time_hcho}", output_folder)
+            if tempo_hour is None:
+               write_to_nc(fhcho, f"PO3inputs_FORM_{time_hcho}_{time_hcho_hms}", output_folder)
+            else:
+               write_to_nc(fhcho, f"PO3inputs_FORM_{time_hcho}_T{tempo_hour:02d}", output_folder)
 
     def po3estimate_empirical(self, no2_path, hcho_path, startdate, enddate, num_job=1):
         '''
@@ -94,13 +102,13 @@ class ozonerates(object):
         self.PO3_output = PO3est_empirical(
             no2_path, hcho_path, startdate, enddate, num_job=num_job)
 
-    def po3estimate_dnn(self, no2_path, hcho_path, startdate, enddate, num_job=1):
+    def po3estimate_dnn(self, no2_path, hcho_path, startdate, enddate, num_job=1, tempo_hour=None):
         '''
            Forward estimation of PO3 using DNN
         '''
 
         self.PO3_output = PO3est_DNN(
-            no2_path, hcho_path, startdate, enddate, num_job=num_job)
+            no2_path, hcho_path, startdate, enddate, num_job=num_job, tempo_hour=tempo_hour)
 
     def reporting(self, fname: str, folder='report'):
         '''

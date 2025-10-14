@@ -3,6 +3,7 @@ from ozonerates import ozonerates
 from pathlib import Path
 import sys
 from time import asctime, gmtime, strftime
+import glob
 
 # Read the control file
 with open('./control.yml', 'r') as stream:
@@ -26,7 +27,6 @@ num_job = ctrl_opts['num_job']
 year = int(sys.argv[1])
 month = int(sys.argv[2])
 
-ozonerates_obj = ozonerates()
 sat_path = []
 sat_path.append(Path(sat_dir_no2))
 sat_path.append(Path(sat_dir_hcho))
@@ -34,37 +34,42 @@ sat_path.append(Path(sat_dir_hcho))
 # if TEMPO is selected
 if sensor == "TEMPO":
    for hour in range(0,24):
+       TEMPO_files = sorted(glob.glob(sat_dir_no2 + "/TEMPO_*" + "_L*_*" + f"{year}{month:02}" + f"*T{hour:02d}*.nc"))
+       if len(TEMPO_files) == 0:
+          print(f"No files are available for T{hour:02d}")
+          continue
        try:
-            ozonerates_obj.read_data(ctm_type, ctm_freq, str(sensor), Path(ctm_dir),
+          ozonerates_obj = ozonerates()
+          ozonerates_obj.read_data(ctm_type, ctm_freq, str(sensor), Path(ctm_dir),
                              sat_path, str(year) + f"{month:02}",output_folder = output_nc_inputparam_dir,
-                             read_ak=False, trop=True, num_job=num_job)
-            if month != 12:
+                             read_ak=False, trop=True, num_job=num_job, tempo_hour=hour)
+          if month != 12:
                if algorithm == 'DNN':
                  ozonerates_obj.po3estimate_dnn(
                     output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
-                    '-01', str(year) + '-' + f"{month+1:02}" + '-01', num_job=num_job)
+                    '-01', str(year) + '-' + f"{month+1:02}" + '-01', num_job=num_job, tempo_hour=hour)
                if algorithm == 'LASSO':
                  ozonerates_obj.po3estimate_empirical(
                     output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
                     '-01', str(year) + '-' + f"{month+1:02}" + '-01', num_job=num_job)
-            else:
+          else:
                if algorithm == 'DNN':
                   ozonerates_obj.po3estimate_dnn(
                     output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
-                    '-01', str(year+1) + '-01' + '-01', num_job=num_job)
+                    '-01', str(year+1) + '-01' + '-01', num_job=num_job, tempo_hour=hour)
                if algorithm == 'LASSO':
                   ozonerates_obj.po3estimate_empirical(
                     output_nc_inputparam_dir, output_nc_inputparam_dir, str(year) + '-' + f"{month:02}" +
                     '-01', str(year+1) + '-01' + '-01', num_job=num_job)
 
-            ozonerates_obj.reporting("PO3_estimates_" + str(year) + f"{month:02}" '_' + str(hour) + 'UTC',folder=output_pdf_dir)
-
-            output_nc_name = "PO3_TEMPO____" + str(year) + f"{month:02}" + '_' + str(hour) + 'UTC' + "_" + strftime('%Y-%m-%dT%H:%M:%SZ', gmtime()) + ".nc"
-            ozonerates_obj.writenc(output_nc_name,folder=output_nc_po3_dir)
+          ozonerates_obj.reporting("PO3_estimates_" + str(year) + f"{month:02}" '_' + str(hour) + 'UTC',folder=output_pdf_dir)
+          output_nc_name = "PO3_TEMPO___" + str(year) + f"{month:02}" + '_' + str(hour) + 'UTC' + "_" + strftime('%Y-%m-%dT%H:%M:%SZ', gmtime()) + ".nc"
+          ozonerates_obj.writenc(output_nc_name,folder=output_nc_po3_dir)
        except Exception as e:
-         print(f"Error processing hour {hour}: {e}")
+          print(f"Error processing hour {hour}: {e}")
    exit() # we should skip the rest because those are for LEOs
 
+ozonerates_obj = ozonerates()
 ozonerates_obj.read_data(ctm_type, ctm_freq, str(sensor), Path(ctm_dir),
                              sat_path, str(year) + f"{month:02}",output_folder = output_nc_inputparam_dir,
                              read_ak=False, trop=True, num_job=num_job)
