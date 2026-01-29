@@ -46,23 +46,47 @@ for year in range(np.min(list_years), np.max(list_years)+1):
     for month in range(np.min(list_months), np.max(list_months)+1):
         # slurm command
         # Opening a file
-        file = open('./jobs/' + 'job_' + str(year) +
-                    '_' + str(month) + '.j', 'w')
-        slurm_cmd = '#!/bin/bash \n'
-        slurm_cmd += '#SBATCH -J ozonerates \n'
-        slurm_cmd += '#SBATCH --account=s1043 \n'
-        slurm_cmd += '#SBATCH --constraint="mil" \n'
-        slurm_cmd += '#SBATCH --ntasks=1 \n'
-        slurm_cmd += '#SBATCH --cpus-per-task=' + str(int(num_job)) + ' \n'
-        slurm_cmd += '#SBATCH --mem=80G \n'
-        if debug_on:
-            slurm_cmd += '#SBATCH --qos=debug \n'
+        if ctrl_opts['sensor'] == 'TEMPO':
+           for hour in range(0,24):
+               file = open('./jobs/' + 'job_' + str(year) +
+                    '_' + str(month) + '_' +  str(hour) + '.j', 'w')
+               slurm_cmd = '#!/bin/bash \n'
+               slurm_cmd += '#SBATCH -J ozonerates \n'
+               slurm_cmd += '#SBATCH --account=s3223 \n'
+               slurm_cmd += '#SBATCH --constraint="mil" \n'
+               slurm_cmd += '#SBATCH --ntasks=1 \n'
+               slurm_cmd += '#SBATCH --cpus-per-task=' + str(int(num_job)) + ' \n'
+               slurm_cmd += '#SBATCH --mem=120G \n'
+               if debug_on:
+                  slurm_cmd += '#SBATCH --qos=debug \n'
+               else:
+                  slurm_cmd += '#SBATCH -t 10:00:00 \n'
+               slurm_cmd += '#SBATCH -o ozonerates-%j.out \n'
+               slurm_cmd += '#SBATCH -e ozonerates-%j.err \n'
+               slurm_cmd += python_bin + ' ./job.py ' + str(year) + ' ' + str(month) + ' ' + str(hour)
+               file.writelines(slurm_cmd)
+               file.close()
+               os.system('sbatch ' + './jobs/' + 'job_' + str(year) +
+                    '_' + str(month) + '_' +  str(hour) + '.j')
         else:
-            slurm_cmd += '#SBATCH -t 3:00:00 \n'
-        slurm_cmd += '#SBATCH -o oi_gmi-%j.out \n'
-        slurm_cmd += '#SBATCH -e oi_gmi-%j.err \n'
-        slurm_cmd += python_bin + ' ./job.py ' + str(year) + ' ' + str(month)
-        file.writelines(slurm_cmd)
-        file.close()
-        os.system('sbatch ' + './jobs/' + 'job_' + str(year) +
+               file = open('./jobs/' + 'job_' + str(year) +
+                    '_' + str(month) + '.j', 'w')
+               slurm_cmd = '#!/bin/bash \n'
+               slurm_cmd += '#SBATCH -J ozonerates \n'
+               slurm_cmd += '#SBATCH --account=s3223 \n'
+               slurm_cmd += '#SBATCH --constraint="mil" \n'
+               slurm_cmd += '#SBATCH --ntasks=1 \n'
+               slurm_cmd += '#SBATCH --cpus-per-task=' + str(int(num_job)) + ' \n'
+               slurm_cmd += '#SBATCH --mem=120G \n'
+               if debug_on:
+                  slurm_cmd += '#SBATCH --qos=debug \n'
+               else:
+                  slurm_cmd += '#SBATCH -t 10:00:00 \n'
+               slurm_cmd += '#SBATCH -o ozonerates-%j.out \n'
+               slurm_cmd += '#SBATCH -e ozonerates-%j.err \n'
+               slurm_cmd += python_bin + ' ./job.py ' + str(year) + ' ' + str(month)
+               file.writelines(slurm_cmd)
+               file.close()
+               os.system('sbatch ' + './jobs/' + 'job_' + str(year) +
                     '_' + str(month) + '.j')
+

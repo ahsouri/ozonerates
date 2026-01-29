@@ -70,9 +70,9 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1, tempo_hour=No
                                        + f"{single_date.day:02}"  + "*.nc")))
         else:
            no2_files = sorted((glob.glob(no2_path + "/*_NO2_" + str(single_date.year) + f"{single_date.month:02}"
-                                      + f"{single_date.day:02}" + f"_T{tempo_hour:02d}*.nc")))
+                                      + f"{single_date.day:02}*" + f"_T{tempo_hour:02d}*.nc")))
            hcho_files = sorted((glob.glob(hcho_path + "/*_FORM_" + str(single_date.year) + f"{single_date.month:02}"
-                                       + f"{single_date.day:02}"  + f"_T{tempo_hour:02d}*.nc")))
+                                       + f"{single_date.day:02}*"  + f"_T{tempo_hour:02d}*.nc")))
 
         if (not no2_files) or (not hcho_files):
            print(f"files aren't available for {single_date}")
@@ -160,6 +160,7 @@ def PO3est_DNN(no2_path, hcho_path, startdate, enddate, num_job=1, tempo_hour=No
         J1 = (J["J1"])
         J1 = np.array(J1[0, 0])
         # linear interpolation (extrapolation is not allowed = NaN)
+        # PBLH is in km while surface_alt is in meter. The LUT needs altitude in meter.
         J4 = interpn((SZAhybrid.flatten(), ALBhybrid.flatten(), O3Chybrid.flatten(), ALThybrid.flatten()),
                      J4, (SZA.flatten(), surface_albedo_no2.flatten(),
                           O3col.flatten(), surface_alt.flatten()+PBLH.flatten()*1000.0/2.0),

@@ -26,18 +26,17 @@ num_job = ctrl_opts['num_job']
 
 year = int(sys.argv[1])
 month = int(sys.argv[2])
-
+if sensor == "TEMPO":
+   hour = int(sys.argv[3])
 sat_path = []
 sat_path.append(Path(sat_dir_no2))
 sat_path.append(Path(sat_dir_hcho))
 
 # if TEMPO is selected
 if sensor == "TEMPO":
-   for hour in range(0,24):
        TEMPO_files = sorted(glob.glob(sat_dir_no2 + "/TEMPO_*" + "_L*_*" + f"{year}{month:02}" + f"*T{hour:02d}*.nc"))
        if len(TEMPO_files) == 0:
-          print(f"No files are available for T{hour:02d}")
-          continue
+          raise FileNotFoundError(f"No files are available for T{hour:02d}")
        try:
           ozonerates_obj = ozonerates()
           ozonerates_obj.read_data(ctm_type, ctm_freq, str(sensor), Path(ctm_dir),
@@ -67,7 +66,7 @@ if sensor == "TEMPO":
           ozonerates_obj.writenc(output_nc_name,folder=output_nc_po3_dir)
        except Exception as e:
           print(f"Error processing hour {hour}: {e}")
-   exit() # we should skip the rest because those are for LEOs
+       exit() # we should skip the rest because those are for LEOs
 
 ozonerates_obj = ozonerates()
 ozonerates_obj.read_data(ctm_type, ctm_freq, str(sensor), Path(ctm_dir),

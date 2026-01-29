@@ -17,22 +17,23 @@ ctm_dir: '/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/ozonerates/minds/'
 ctm_type: MINDS
 
 # model frequency (monthly or daily)
-ctm_freq: monthly
+ctm_freq: daily
 
 # the sensor name (OMI, TROPOMI)
-sensor: 'TROPOMI'
+sensor: 'TEMPO'
 
 # set the sat dir
-sat_dir_no2: '/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/ozonerates/trop_no2/'
-sat_dir_hcho: '/discover/nobackup/asouri/PROJECTS/PO3_ACMAP/ozonerates/trop_hcho/'
+sat_dir_no2: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/tempo_no2_L2/'
+sat_dir_hcho: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/tempo_hcho_L2/'
 
 # starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
-start_date: '2019-07'
-end_date:   '2019-07'
+start_date: '2024-07'
+end_date:   '2024-07'
 
 # output folder for PDF reports
-output_pdf_dir: './report_PO3_dnn_LA'
+output_pdf_dir: './report_PO3_dnn_tempo_minds'
 
 # output folder for NC diags
-output_nc_inputparam_dir: './diag_inputparam_tropomi_LA'
-output_nc_PO3_dir: './diag_PO3_tropomi_LA'
+output_nc_inputparam_dir: './diag_inputparam_tempo_minds'
+#output_nc_inputparam_dir: './test_lasso'
+output_nc_PO3_dir: './diag_PO3_tempo_minds'

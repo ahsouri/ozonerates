@@ -1153,7 +1153,7 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
             L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     return outputs_sat
 
-def tempo_reader(product_dir: str, tempo_hour: int, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
+def tempo_reader(product_dir: str, tempo_hour: int, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=False, num_job=1):
     '''
         reading tempo data
              product_dir [str]: the folder containing the tropomi data

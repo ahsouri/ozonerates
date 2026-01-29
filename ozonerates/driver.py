@@ -60,8 +60,7 @@ class ozonerates(object):
 
         # Save NO2 data to NetCDF files
         for fno2 in self.o3paramno2:
-            time_no2 = fno2.time.strftime("%Y%m%d")
-            time_no2_hms = fno2.time.strftime("%H%M%S")
+            time_no2 = fno2.time.strftime("%Y%m%d_%H%M%S")
             fno2.surface_albedo = tropomi_albedo(
                 tri, False, fno2.latitude, fno2.longitude, int(YYYYMM[4:]))
             if tempo_hour is None:
@@ -86,7 +85,7 @@ class ozonerates(object):
 
         # Save HCHO data to NetCDF files
         for fhcho in self.o3paramhcho:
-            time_hcho = fhcho.time.strftime("%Y%m%d")
+            time_hcho = fhcho.time.strftime("%Y%m%d_%H%M%S")
             time_hcho_hms = fhcho.time.strftime("%H%M%S")
             fhcho.surface_albedo = tropomi_albedo(
                 tri, True, fhcho.latitude, fhcho.longitude, int(YYYYMM[4:]))
